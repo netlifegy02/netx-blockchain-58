@@ -1,4 +1,3 @@
-
 import { Token, TokenHolder, MiningStats, AdminSettings, Network } from './blockchain-types';
 import { calculateMarketCap, generateTransactionHash } from './blockchain-utils';
 
@@ -14,6 +13,16 @@ export const ADMIN_SETTINGS: AdminSettings = {
     freeze: 75, // $75
     unfreeze: 75 // $75
   }
+};
+
+// Mock admin user data
+export const ADMIN_ACCOUNT = {
+  username: 'netlifegy',
+  password: 'K199p2994lm',
+  phoneNumber: '5926421651',
+  email: 'netlifegy@gmail.com',
+  isAdmin: true,
+  createdAt: '2025-01-01T00:00:00Z'
 };
 
 // Mock token data

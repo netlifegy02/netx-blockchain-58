@@ -10,9 +10,12 @@ import AdminPanel from '@/components/blockchain/AdminPanel';
 import AdminBackup from '@/components/blockchain/AdminBackup';
 import AdminSecurity from '@/components/blockchain/AdminSecurity';
 import AdminUsers from '@/components/blockchain/AdminUsers';
+import AdminMobileApp from '@/components/blockchain/AdminMobileApp';
+import Trading from '@/components/blockchain/Trading';
+import Cashout from '@/components/blockchain/Cashout';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ShieldAlert, Database, Users, Lock } from 'lucide-react';
+import { ShieldAlert, Database, Users, Lock, ArrowLeftRight, DollarSign, Smartphone } from 'lucide-react';
 
 const AdminPage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -94,10 +97,18 @@ const AdminPage = () => {
             </div>
             
             <Tabs defaultValue="tokens" className="space-y-6">
-              <TabsList>
+              <TabsList className="flex flex-wrap">
                 <TabsTrigger value="tokens" className="flex items-center gap-1">
                   <ShieldAlert className="h-4 w-4" />
                   Token Management
+                </TabsTrigger>
+                <TabsTrigger value="trading" className="flex items-center gap-1">
+                  <ArrowLeftRight className="h-4 w-4" />
+                  Trading
+                </TabsTrigger>
+                <TabsTrigger value="cashout" className="flex items-center gap-1">
+                  <DollarSign className="h-4 w-4" />
+                  Cashout
                 </TabsTrigger>
                 <TabsTrigger value="backups" className="flex items-center gap-1">
                   <Database className="h-4 w-4" />
@@ -111,6 +122,10 @@ const AdminPage = () => {
                   <Users className="h-4 w-4" />
                   User Accounts
                 </TabsTrigger>
+                <TabsTrigger value="mobileapp" className="flex items-center gap-1">
+                  <Smartphone className="h-4 w-4" />
+                  Mobile App
+                </TabsTrigger>
               </TabsList>
               
               <TabsContent value="tokens">
@@ -123,6 +138,14 @@ const AdminPage = () => {
                   onToggleMining={handleToggleMining}
                 />
               </TabsContent>
+
+              <TabsContent value="trading">
+                <Trading />
+              </TabsContent>
+
+              <TabsContent value="cashout">
+                <Cashout />
+              </TabsContent>
               
               <TabsContent value="backups">
                 <AdminBackup />
@@ -134,6 +157,10 @@ const AdminPage = () => {
 
               <TabsContent value="users">
                 <AdminUsers />
+              </TabsContent>
+
+              <TabsContent value="mobileapp">
+                <AdminMobileApp />
               </TabsContent>
             </Tabs>
           </div>

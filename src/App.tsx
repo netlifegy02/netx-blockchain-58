@@ -10,6 +10,7 @@ import MiningPage from "./pages/MiningPage";
 import AdminPage from "./pages/AdminPage";
 import SettingsPage from "./pages/SettingsPage";
 import RegisterPage from "./pages/RegisterPage";
+import MaintenancePage from "./pages/MaintenancePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/maintenance" element={<MaintenancePage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

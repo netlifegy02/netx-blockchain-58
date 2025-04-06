@@ -20,7 +20,8 @@ import {
   HardDrive,
   Calendar,
   Server,
-  Share2
+  Share2,
+  Cloud
 } from 'lucide-react';
 
 interface BackupData {
@@ -65,6 +66,8 @@ const AdminBackup: React.FC = () => {
   ]);
   
   const [isBackupInProgress, setIsBackupInProgress] = useState(false);
+  const [isGDriveConnected, setIsGDriveConnected] = useState(false);
+  const [remoteBackupPath, setRemoteBackupPath] = useState('mintopia-backups');
   
   const handleCreateBackup = () => {
     setIsBackupInProgress(true);
@@ -114,6 +117,34 @@ const AdminBackup: React.FC = () => {
   
   const handleUpdateLocalPath = () => {
     toast.success(`Local backup path updated to ${localBackupPath}`);
+  };
+
+  const handleConnectGoogleDrive = () => {
+    // This would integrate with Google Drive API in production
+    toast.info('Connecting to Google Drive...');
+    
+    setTimeout(() => {
+      setIsGDriveConnected(true);
+      toast.success('Connected to Google Drive successfully');
+    }, 2000);
+  };
+  
+  const handleBackupToGoogleDrive = () => {
+    if (!isGDriveConnected) {
+      toast.error('Please connect to Google Drive first');
+      return;
+    }
+    
+    toast.info('Backing up recovery phrases to Google Drive...');
+    
+    // Simulate backup process
+    setTimeout(() => {
+      toast.success('Recovery phrases backed up to Google Drive successfully');
+    }, 2500);
+  };
+  
+  const handleUpdateRemotePath = () => {
+    toast.success(`Remote backup path updated to ${remoteBackupPath}`);
   };
   
   return (
@@ -208,6 +239,92 @@ const AdminBackup: React.FC = () => {
                 <Share2 className="h-4 w-4 mr-2" />
                 Configure Remote Backup
               </Button>
+            </div>
+          </div>
+          
+          <Separator className="my-6" />
+          
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium mb-4">Google Drive Backup</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4 bg-secondary/30 p-4 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Cloud className="h-5 w-5 text-blue-500" />
+                  <h4 className="font-medium">Backup Recovery Phrases</h4>
+                </div>
+                
+                <p className="text-sm text-muted-foreground">
+                  Securely store recovery phrases and wallet keys on Google Drive
+                </p>
+                
+                {!isGDriveConnected ? (
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={handleConnectGoogleDrive}
+                  >
+                    Connect Google Drive
+                  </Button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-green-500/20 text-green-700">Connected</Badge>
+                      <span className="text-sm">mintopia@gmail.com</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="remotePath">Remote Folder</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          id="remotePath" 
+                          value={remoteBackupPath}
+                          onChange={(e) => setRemoteBackupPath(e.target.value)}
+                        />
+                        <Button size="sm" onClick={handleUpdateRemotePath}>
+                          Update
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={handleBackupToGoogleDrive} 
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Cloud className="h-4 w-4 mr-2" />
+                      Backup Recovery Phrases
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-4 bg-secondary/30 p-4 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Server className="h-5 w-5 text-indigo-500" />
+                  <h4 className="font-medium">Remote Backup Status</h4>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Last Backed Up</span>
+                    <span className="text-sm font-medium">2025-04-06 10:15 AM</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Backup Size</span>
+                    <span className="text-sm font-medium">12.5 MB</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <Badge variant="outline" className="bg-green-500/20 text-green-700">
+                      Up to date
+                    </Badge>
+                  </div>
+                </div>
+                
+                <Button variant="outline" className="w-full">
+                  <Download className="h-4 w-4 mr-2" />
+                  Restore from Drive
+                </Button>
+              </div>
             </div>
           </div>
           
