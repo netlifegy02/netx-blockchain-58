@@ -8,9 +8,11 @@ import {
 } from '@/lib/blockchain-data';
 import AdminPanel from '@/components/blockchain/AdminPanel';
 import AdminBackup from '@/components/blockchain/AdminBackup';
+import AdminSecurity from '@/components/blockchain/AdminSecurity';
+import AdminUsers from '@/components/blockchain/AdminUsers';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ShieldAlert, Database } from 'lucide-react';
+import { ShieldAlert, Database, Users, Lock } from 'lucide-react';
 
 const AdminPage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -87,7 +89,7 @@ const AdminPage = () => {
             <div>
               <h2 className="text-3xl font-bold mb-1">Admin Control Panel</h2>
               <p className="text-muted-foreground">
-                Manage tokens, blockchain settings and system backups
+                Manage tokens, blockchain settings, system backups and user accounts
               </p>
             </div>
             
@@ -100,6 +102,14 @@ const AdminPage = () => {
                 <TabsTrigger value="backups" className="flex items-center gap-1">
                   <Database className="h-4 w-4" />
                   System Backups
+                </TabsTrigger>
+                <TabsTrigger value="security" className="flex items-center gap-1">
+                  <Lock className="h-4 w-4" />
+                  Security Config
+                </TabsTrigger>
+                <TabsTrigger value="users" className="flex items-center gap-1">
+                  <Users className="h-4 w-4" />
+                  User Accounts
                 </TabsTrigger>
               </TabsList>
               
@@ -116,6 +126,14 @@ const AdminPage = () => {
               
               <TabsContent value="backups">
                 <AdminBackup />
+              </TabsContent>
+
+              <TabsContent value="security">
+                <AdminSecurity />
+              </TabsContent>
+
+              <TabsContent value="users">
+                <AdminUsers />
               </TabsContent>
             </Tabs>
           </div>
