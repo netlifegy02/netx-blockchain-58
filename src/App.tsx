@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import TokensPage from "./pages/TokensPage";
 import MiningPage from "./pages/MiningPage";
 import AdminPage from "./pages/AdminPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
           <Route path="/tokens" element={<TokensPage />} />
           <Route path="/mining" element={<MiningPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

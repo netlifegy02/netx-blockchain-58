@@ -7,7 +7,10 @@ import {
   ADMIN_SETTINGS
 } from '@/lib/blockchain-data';
 import AdminPanel from '@/components/blockchain/AdminPanel';
+import AdminBackup from '@/components/blockchain/AdminBackup';
 import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ShieldAlert, Database } from 'lucide-react';
 
 const AdminPage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -80,14 +83,42 @@ const AdminPage = () => {
             </div>
           </div>
         ) : (
-          <AdminPanel
-            tokens={tokens}
-            settings={settings}
-            onApproveToken={handleApproveToken}
-            onRejectToken={handleRejectToken}
-            onUpdateSettings={handleUpdateSettings}
-            onToggleMining={handleToggleMining}
-          />
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-3xl font-bold mb-1">Admin Control Panel</h2>
+              <p className="text-muted-foreground">
+                Manage tokens, blockchain settings and system backups
+              </p>
+            </div>
+            
+            <Tabs defaultValue="tokens" className="space-y-6">
+              <TabsList>
+                <TabsTrigger value="tokens" className="flex items-center gap-1">
+                  <ShieldAlert className="h-4 w-4" />
+                  Token Management
+                </TabsTrigger>
+                <TabsTrigger value="backups" className="flex items-center gap-1">
+                  <Database className="h-4 w-4" />
+                  System Backups
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="tokens">
+                <AdminPanel
+                  tokens={tokens}
+                  settings={settings}
+                  onApproveToken={handleApproveToken}
+                  onRejectToken={handleRejectToken}
+                  onUpdateSettings={handleUpdateSettings}
+                  onToggleMining={handleToggleMining}
+                />
+              </TabsContent>
+              
+              <TabsContent value="backups">
+                <AdminBackup />
+              </TabsContent>
+            </Tabs>
+          </div>
         )}
       </div>
     </Layout>
