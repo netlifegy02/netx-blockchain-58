@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Token, TokenHolder } from '@/lib/blockchain-types';
 import { 
@@ -31,6 +32,7 @@ import { toast } from 'sonner';
 import { Plus, Search } from 'lucide-react';
 
 const TokensPage = () => {
+  const { id } = useParams();
   const [tokens, setTokens] = useState<Token[]>([]);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [selectedTokenHolders, setSelectedTokenHolders] = useState<TokenHolder[]>([]);
@@ -48,6 +50,17 @@ const TokensPage = () => {
         
         const mockTokens = generateMockTokens();
         setTokens(mockTokens);
+        
+        // If there's an ID parameter, show that token's details
+        if (id) {
+          const token = mockTokens.find(t => t.id === id);
+          if (token) {
+            const holders = generateMockHolders(token.id);
+            setSelectedToken(token);
+            setSelectedTokenHolders(holders);
+            setShowDetailDialog(true);
+          }
+        }
       } catch (error) {
         console.error('Error loading tokens:', error);
       } finally {
@@ -56,7 +69,7 @@ const TokensPage = () => {
     };
     
     loadData();
-  }, []);
+  }, [id]);
   
   const filteredTokens = tokens.filter(token => 
     token.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
