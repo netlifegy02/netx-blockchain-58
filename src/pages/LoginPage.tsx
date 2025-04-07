@@ -1,18 +1,27 @@
 
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Lock, LogIn, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { isAuthenticated } from '@/utils/authUtils';
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // If user is already authenticated, redirect to dashboard
+  useEffect(() => {
+    if (isAuthenticated()) {
+      navigate('/');
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +45,10 @@ const LoginPage: React.FC = () => {
         }));
         
         toast.success('Login successful');
-        navigate('/');
+        
+        // Redirect to the page they were trying to access or to home
+        const from = location.state?.from?.pathname || '/';
+        navigate(from);
       } else {
         toast.error('Invalid credentials');
       }

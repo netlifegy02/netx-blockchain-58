@@ -24,6 +24,15 @@ import {
 } from 'lucide-react';
 import LinuxSetupGuide from './LinuxSetupGuide';
 
+// Mock file for downloads - in a real app these would be actual binary files
+const createMockBinaryFile = (size: number): ArrayBuffer => {
+  const array = new Uint8Array(size * 1024 * 1024); // Convert MB to bytes
+  for (let i = 0; i < array.length; i++) {
+    array[i] = Math.floor(Math.random() * 256);
+  }
+  return array.buffer;
+};
+
 const AdminMobileApp: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -35,21 +44,21 @@ const AdminMobileApp: React.FC = () => {
       date: '2025-04-06',
       size: '24.5 MB',
       isLatest: true,
-      url: '/downloads/mintopia-v1.2.5.apk'
+      sizeInMB: 24.5
     },
     {
       version: '1.2.0',
       date: '2025-03-20',
       size: '23.8 MB',
       isLatest: false,
-      url: '/downloads/mintopia-v1.2.0.apk'
+      sizeInMB: 23.8
     },
     {
       version: '1.1.0',
       date: '2025-02-15',
       size: '22.1 MB',
       isLatest: false,
-      url: '/downloads/mintopia-v1.1.0.apk'
+      sizeInMB: 22.1
     }
   ];
   
@@ -58,19 +67,22 @@ const AdminMobileApp: React.FC = () => {
       version: '1.2.5',
       date: '2025-04-06',
       size: '30.2 MB',
-      isLatest: true
+      isLatest: true,
+      sizeInMB: 30.2
     },
     {
       version: '1.2.0',
       date: '2025-03-20',
       size: '29.7 MB',
-      isLatest: false
+      isLatest: false,
+      sizeInMB: 29.7
     },
     {
       version: '1.1.0',
       date: '2025-02-15',
       size: '28.3 MB',
-      isLatest: false
+      isLatest: false,
+      sizeInMB: 28.3
     }
   ];
   
@@ -96,10 +108,17 @@ const AdminMobileApp: React.FC = () => {
     }, 2500);
   };
   
-  const handleDownloadApk = (version: string, url: string) => {
-    // In a real app, this would trigger an actual download
-    // For now we'll simulate it with a toast notification
+  const handleDownloadApk = (version: string, sizeMB: number) => {
     toast.info(`Downloading Android APK v${version}...`);
+    
+    // Create a proper-sized mock binary file
+    const fileContent = createMockBinaryFile(sizeMB);
+    
+    // Convert ArrayBuffer to Blob with appropriate MIME type
+    const blob = new Blob([fileContent], { type: 'application/vnd.android.package-archive' });
+    
+    // Create object URL for the blob
+    const url = URL.createObjectURL(blob);
     
     // Create temporary anchor element to trigger download
     const link = document.createElement('a');
@@ -109,8 +128,9 @@ const AdminMobileApp: React.FC = () => {
     link.click();
     document.body.removeChild(link);
     
-    // Simulate download completion
+    // Clean up by revoking the object URL
     setTimeout(() => {
+      URL.revokeObjectURL(url);
       toast.success(`Android APK v${version} downloaded successfully`);
     }, 1500);
   };
@@ -119,6 +139,18 @@ const AdminMobileApp: React.FC = () => {
     toast.info('Connecting to Google Drive...');
     
     // This would initiate OAuth flow with Google in a real implementation
+    // Open a new window for Google Drive authentication
+    const width = 600;
+    const height = 700;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    
+    window.open(
+      'https://accounts.google.com/o/oauth2/auth?redirect_uri=https://mintopia.io/auth/google/callback&response_type=code&client_id=mock-client-id&scope=https://www.googleapis.com/auth/drive.file',
+      'Google Drive Authorization',
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+    
     setTimeout(() => {
       toast.success('Recovery phrase backed up to Google Drive');
     }, 2000);
@@ -193,7 +225,7 @@ const AdminMobileApp: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDownloadApk(release.version, release.url)}
+                      onClick={() => handleDownloadApk(release.version, release.sizeInMB)}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Download
