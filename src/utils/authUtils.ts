@@ -19,3 +19,21 @@ export const redirectIfNotAuthenticated = (navigate: any): boolean => {
   }
   return false;
 };
+
+export const getUserInfo = () => {
+  try {
+    const authData = localStorage.getItem('auth');
+    if (!authData) return null;
+    
+    const parsed = JSON.parse(authData);
+    return parsed?.user || null;
+  } catch (error) {
+    console.error('Error getting user info:', error);
+    return null;
+  }
+};
+
+export const logout = (navigate: any) => {
+  localStorage.removeItem('auth');
+  navigate('/login');
+};

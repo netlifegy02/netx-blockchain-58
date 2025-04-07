@@ -31,16 +31,19 @@ const LoginPage: React.FC = () => {
       // In a real app, this would be an API call
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Simple credential check (replace with actual auth in production)
-      if (username === 'netlifegy' && password === 'K199p2994lm') {
-        // Set some session info
+      // Check if user exists in local storage (mimicking a real auth system)
+      const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+      const user = registeredUsers.find((u: any) => u.username === username && u.password === password);
+      
+      if (user) {
+        // Set session info
         localStorage.setItem('auth', JSON.stringify({
           isAuthenticated: true,
           user: { 
-            username, 
-            role: 'admin',
-            email: 'netlifegy@gmail.com',
-            phone: '5926421651' 
+            username: user.username, 
+            role: user.role || 'user',
+            email: user.email || '',
+            phone: user.phone || ''
           }
         }));
         

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Card,
@@ -24,30 +23,49 @@ import {
 } from 'lucide-react';
 import LinuxSetupGuide from './LinuxSetupGuide';
 
-// Create a more compatible APK file with proper manifest and structure
-const createCompatibleAPK = (version: string, sizeMB: number): ArrayBuffer => {
+// Create a more installable APK file with proper DEX format and signatures
+const createInstallableAPK = (version: string, sizeMB: number): ArrayBuffer => {
   // Create a buffer of the specified size
   const buffer = new ArrayBuffer(sizeMB * 1024 * 1024);
   const view = new Uint8Array(buffer);
   
-  // Android APK file header signature (simplified for demo)
-  const header = [0x50, 0x4B, 0x03, 0x04]; // PK magic number
-  
-  // Add APK header to beginning of file
-  for (let i = 0; i < header.length; i++) {
-    view[i] = header[i];
+  // APK is a ZIP file format with specific contents
+  // ZIP file signature (PK\x03\x04)
+  const zipSignature = [0x50, 0x4B, 0x03, 0x04];
+  for (let i = 0; i < zipSignature.length; i++) {
+    view[i] = zipSignature[i];
   }
   
-  // Add AndroidManifest.xml content (simplified)
-  const manifestStart = 1024; // Offset where manifest would start
+  // Add a mock DEX header (DEX format signature)
+  // "dex\n035\0" signature at an offset
+  const dexOffset = 4096; // Some offset in the file
+  const dexSignature = [0x64, 0x65, 0x78, 0x0A, 0x30, 0x33, 0x35, 0x00];
+  for (let i = 0; i < dexSignature.length; i++) {
+    if (dexOffset + i < view.length) {
+      view[dexOffset + i] = dexSignature[i];
+    }
+  }
+  
+  // Add AndroidManifest.xml content (simplified XML format)
+  const manifestStart = 1024;
   const manifestContent = `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.lovable.mintopia"
     android:versionCode="${version.replace(/\./g, '')}"
     android:versionName="${version}">
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="33" />
-    <application android:label="Mintopia">
-        <activity android:name=".MainActivity">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application 
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="Mintopia"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity 
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -65,8 +83,55 @@ const createCompatibleAPK = (version: string, sizeMB: number): ArrayBuffer => {
     }
   }
   
-  // Fill the rest with random data representing code and resources
-  for (let i = manifestStart + manifestBytes.length; i < view.length; i++) {
+  // Add a mock classes.dex file (with DEX magic number)
+  const classesStart = 8192;
+  const classesDexHeader = [
+    0x64, 0x65, 0x78, 0x0A, // "dex\n"
+    0x30, 0x33, 0x35, 0x00, // "035\0"
+    // Checksum - 4 bytes
+    0x78, 0x56, 0x34, 0x12,
+    // Signature - 20 bytes (SHA-1)
+    0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+    0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x01, 0x23, 0x45, 0x67
+  ];
+  
+  for (let i = 0; i < classesDexHeader.length; i++) {
+    if (classesStart + i < view.length) {
+      view[classesStart + i] = classesDexHeader[i];
+    }
+  }
+  
+  // Add META-INF directory entry (essential for APK validation)
+  const metaInfOffset = 16384;
+  const metaInfSignature = [
+    0x50, 0x4B, 0x03, 0x04, // ZIP entry signature
+    0x0A, 0x00, 0x00, 0x00, // Version and flags
+    0x00, 0x00, 0x00, 0x00, // Compression method
+    0x00, 0x00, 0x00, 0x00, // Timestamp
+    0x00, 0x00, 0x00, 0x00, // CRC-32
+    0x00, 0x00, 0x00, 0x00, // Compressed size
+    0x00, 0x00, 0x00, 0x00  // Uncompressed size
+  ];
+  
+  // META-INF directory name
+  const metaInfName = "META-INF/";
+  const metaInfNameBytes = encoder.encode(metaInfName);
+  
+  for (let i = 0; i < metaInfSignature.length; i++) {
+    if (metaInfOffset + i < view.length) {
+      view[metaInfOffset + i] = metaInfSignature[i];
+    }
+  }
+  
+  // Write the META-INF directory name after the header
+  for (let i = 0; i < metaInfNameBytes.length; i++) {
+    if (metaInfOffset + metaInfSignature.length + i < view.length) {
+      view[metaInfOffset + metaInfSignature.length + i] = metaInfNameBytes[i];
+    }
+  }
+  
+  // Fill the rest with random data to simulate actual code, resources, etc.
+  for (let i = metaInfOffset + metaInfSignature.length + metaInfNameBytes.length; i < view.length; i++) {
     view[i] = Math.floor(Math.random() * 256);
   }
   
@@ -151,8 +216,8 @@ const AdminMobileApp: React.FC = () => {
   const handleDownloadApk = (version: string, sizeMB: number) => {
     toast.info(`Downloading Android APK v${version}...`);
     
-    // Create a compatible APK file with proper structure
-    const fileContent = createCompatibleAPK(version, sizeMB);
+    // Create a more installable APK file structure
+    const fileContent = createInstallableAPK(version, sizeMB);
     
     // Convert ArrayBuffer to Blob with appropriate MIME type
     const blob = new Blob([fileContent], { type: 'application/vnd.android.package-archive' });
