@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -18,7 +18,8 @@ import {
   MessageSquare, 
   Check, 
   RefreshCw,
-  ShieldCheck
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 
 interface WhatsAppVerificationProps {
@@ -38,6 +39,13 @@ const WhatsAppVerification: React.FC<WhatsAppVerificationProps> = ({
   const [codeSent, setCodeSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [isEnabled, setIsEnabled] = useState(true);
+  
+  // Check if WhatsApp verification is enabled by admin
+  useEffect(() => {
+    const verificationEnabled = localStorage.getItem('whatsappVerificationEnabled');
+    setIsEnabled(verificationEnabled !== 'false'); // Default to true if not set
+  }, []);
   
   const handleSendCode = () => {
     if (!phoneNumber || phoneNumber.length < 10) {
@@ -94,6 +102,37 @@ const WhatsAppVerification: React.FC<WhatsAppVerificationProps> = ({
     if (countdown > 0) return;
     handleSendCode();
   };
+  
+  // If WhatsApp verification is disabled, show a notice
+  if (!isEnabled) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-muted-foreground" />
+            WhatsApp Verification
+          </CardTitle>
+          <CardDescription>
+            Verify your account with WhatsApp for enhanced security
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-muted p-4 rounded-md border border-muted-foreground/20">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <div>
+                <p className="font-medium">WhatsApp verification is currently disabled</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  The administrator has temporarily disabled WhatsApp verification for all users. 
+                  Please check back later or contact support if you need assistance.
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card>

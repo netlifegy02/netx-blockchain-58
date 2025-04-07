@@ -26,9 +26,17 @@ import {
   Search, 
   Users as UsersIcon,
   Smartphone,
-  Server
+  Server,
+  Plus,
+  Pencil,
+  Trash2,
+  DollarSign,
+  MinusCircle
 } from 'lucide-react';
 import { formatNumber } from '@/lib/blockchain-utils';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface UserAccount {
   id: string;
@@ -36,10 +44,12 @@ interface UserAccount {
   email: string;
   phone: string;
   tokens: number;
+  balance: number;
   nodes: number;
   status: 'active' | 'inactive' | 'pending';
   registeredAt: string;
   verificationStatus: 'verified' | 'unverified';
+  avatar?: string;
 }
 
 const AdminUsers: React.FC = () => {
@@ -47,26 +57,47 @@ const AdminUsers: React.FC = () => {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [nodeCount, setNodeCount] = useState({ total: 0, active: 0 });
+  const [selectedUser, setSelectedUser] = useState<UserAccount | null>(null);
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
+  const [isFundsDialogOpen, setIsFundsDialogOpen] = useState(false);
+  const [fundAmount, setFundAmount] = useState('');
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+  });
   
   useEffect(() => {
     const loadUsers = async () => {
       setIsLoading(true);
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800));
+        // Attempt to load users from localStorage first
+        const savedUsers = localStorage.getItem('adminUsers');
+        let mockUsers: UserAccount[] = [];
         
-        // Generate mock user data
-        const mockUsers: UserAccount[] = Array.from({ length: 12 }, (_, i) => ({
-          id: `user-${i + 100}`,
-          name: `User ${['John', 'Mary', 'David', 'Sarah', 'Michael', 'Jennifer', 'Robert', 'Lisa', 'Thomas', 'Emily'][i % 10]} ${String.fromCharCode(65 + i % 26)}`,
-          email: `user${i + 100}@example.com`,
-          phone: `+1 ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-          tokens: Math.floor(Math.random() * 5),
-          nodes: Math.floor(Math.random() * 3),
-          status: ['active', 'active', 'active', 'inactive', 'pending'][Math.floor(Math.random() * 5)] as 'active' | 'inactive' | 'pending',
-          registeredAt: new Date(Date.now() - Math.floor(Math.random() * 90 * 24 * 60 * 60 * 1000)).toISOString(),
-          verificationStatus: Math.random() > 0.3 ? 'verified' : 'unverified'
-        }));
+        if (savedUsers) {
+          mockUsers = JSON.parse(savedUsers);
+        } else {
+          // Generate mock user data if not found in localStorage
+          mockUsers = Array.from({ length: 12 }, (_, i) => ({
+            id: `user-${i + 100}`,
+            name: `User ${['John', 'Mary', 'David', 'Sarah', 'Michael', 'Jennifer', 'Robert', 'Lisa', 'Thomas', 'Emily'][i % 10]} ${String.fromCharCode(65 + i % 26)}`,
+            email: `user${i + 100}@example.com`,
+            phone: `+1 ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+            tokens: Math.floor(Math.random() * 5),
+            balance: Math.floor(Math.random() * 1000),
+            nodes: Math.floor(Math.random() * 3),
+            status: ['active', 'active', 'active', 'inactive', 'pending'][Math.floor(Math.random() * 5)] as 'active' | 'inactive' | 'pending',
+            registeredAt: new Date(Date.now() - Math.floor(Math.random() * 90 * 24 * 60 * 60 * 1000)).toISOString(),
+            verificationStatus: Math.random() > 0.3 ? 'verified' : 'unverified',
+            avatar: Math.random() > 0.7 ? `/avatars/avatar-${i % 5 + 1}.png` : undefined
+          }));
+          
+          // Save to localStorage
+          localStorage.setItem('adminUsers', JSON.stringify(mockUsers));
+        }
         
         setUsers(mockUsers);
         
@@ -85,6 +116,13 @@ const AdminUsers: React.FC = () => {
     
     loadUsers();
   }, []);
+  
+  // Save users to localStorage whenever they change
+  useEffect(() => {
+    if (users.length > 0) {
+      localStorage.setItem('adminUsers', JSON.stringify(users));
+    }
+  }, [users]);
   
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -117,6 +155,112 @@ const AdminUsers: React.FC = () => {
         : user
     ));
     toast.success('User has been activated');
+  };
+  
+  const handleDeleteUser = (userId: string) => {
+    setUsers(users.filter(user => user.id !== userId));
+    toast.success('User has been deleted');
+  };
+  
+  const handleAddUser = () => {
+    if (!newUser.name || !newUser.email || !newUser.password) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    const newId = `user-${Date.now()}`;
+    
+    const userToAdd: UserAccount = {
+      id: newId,
+      name: newUser.name,
+      email: newUser.email,
+      phone: newUser.phone || '',
+      tokens: 0,
+      balance: 0,
+      nodes: 0,
+      status: 'active',
+      registeredAt: new Date().toISOString(),
+      verificationStatus: 'unverified'
+    };
+    
+    setUsers([userToAdd, ...users]);
+    
+    // Also add to registered users for login
+    const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    registeredUsers.push({
+      username: newUser.email,
+      password: newUser.password,
+      email: newUser.email,
+      phone: newUser.phone,
+      role: 'user'
+    });
+    localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
+    
+    setNewUser({
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+    });
+    
+    setIsAddUserOpen(false);
+    toast.success('New user added successfully');
+  };
+  
+  const handleEditUser = () => {
+    if (!selectedUser) return;
+    
+    setUsers(users.map(user => 
+      user.id === selectedUser.id ? selectedUser : user
+    ));
+    
+    setIsEditUserOpen(false);
+    toast.success('User information updated');
+  };
+  
+  const handleAddFunds = () => {
+    if (!selectedUser) return;
+    
+    const amount = parseFloat(fundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    setUsers(users.map(user => 
+      user.id === selectedUser.id 
+        ? { ...user, balance: user.balance + amount } 
+        : user
+    ));
+    
+    setIsFundsDialogOpen(false);
+    setFundAmount('');
+    toast.success(`$${amount} added to ${selectedUser.name}'s account`);
+  };
+  
+  const handleRemoveFunds = () => {
+    if (!selectedUser) return;
+    
+    const amount = parseFloat(fundAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    if (amount > selectedUser.balance) {
+      toast.error(`Cannot remove more than the current balance of $${selectedUser.balance}`);
+      return;
+    }
+    
+    setUsers(users.map(user => 
+      user.id === selectedUser.id 
+        ? { ...user, balance: user.balance - amount } 
+        : user
+    ));
+    
+    setIsFundsDialogOpen(false);
+    setFundAmount('');
+    toast.success(`$${amount} removed from ${selectedUser.name}'s account`);
   };
   
   return (
@@ -172,10 +316,80 @@ const AdminUsers: React.FC = () => {
       
       <Card>
         <CardHeader>
-          <CardTitle>User Accounts</CardTitle>
-          <CardDescription>
-            Manage registered users and their verification status
-          </CardDescription>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle>User Accounts</CardTitle>
+              <CardDescription>
+                Manage registered users and their verification status
+              </CardDescription>
+            </div>
+            
+            <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add User
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New User</DialogTitle>
+                  <DialogDescription>
+                    Create a new user account. The user will be able to log in with these credentials.
+                  </DialogDescription>
+                </DialogHeader>
+                
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input 
+                      id="name" 
+                      value={newUser.name}
+                      onChange={(e) => setNewUser({...newUser, name: e.target.value})}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input 
+                      id="email" 
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input 
+                      id="phone" 
+                      value={newUser.phone}
+                      onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
+                      placeholder="+1 234 567 8900"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input 
+                      id="password" 
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+                
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsAddUserOpen(false)}>Cancel</Button>
+                  <Button onClick={handleAddUser}>Create User</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
           
           <div className="relative mt-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -205,7 +419,7 @@ const AdminUsers: React.FC = () => {
                   <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Verification</TableHead>
-                  <TableHead>Tokens/Nodes</TableHead>
+                  <TableHead>Balance/Assets</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -220,8 +434,16 @@ const AdminUsers: React.FC = () => {
                   filteredUsers.map(user => (
                     <TableRow key={user.id}>
                       <TableCell>
-                        <div className="font-medium">{user.name}</div>
-                        <div className="text-sm text-muted-foreground">{user.email}</div>
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={user.avatar} />
+                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>{user.phone}</TableCell>
                       <TableCell>
@@ -251,14 +473,145 @@ const AdminUsers: React.FC = () => {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <span className="text-sm">{user.tokens} Tokens</span>
-                          <span className="text-muted-foreground mx-1">•</span>
-                          <span className="text-sm">{user.nodes} Nodes</span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1">
+                            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-sm font-medium">${user.balance.toFixed(2)}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <span>{user.tokens} Tokens</span>
+                            <span className="mx-1">•</span>
+                            <span>{user.nodes} Nodes</span>
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setSelectedUser(user)}
+                              >
+                                <DollarSign className="h-4 w-4 mr-1" />
+                                Funds
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Manage Funds</DialogTitle>
+                                <DialogDescription>
+                                  Add or remove funds from {user.name}'s account
+                                </DialogDescription>
+                              </DialogHeader>
+                              
+                              <div className="py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="fundAmount">Amount (USD)</Label>
+                                  <Input 
+                                    id="fundAmount" 
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={fundAmount}
+                                    onChange={(e) => setFundAmount(e.target.value)}
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                                
+                                <div className="mt-4 p-3 bg-muted rounded-md">
+                                  <div className="font-medium">Current Balance</div>
+                                  <div className="text-2xl font-bold">${user.balance.toFixed(2)}</div>
+                                </div>
+                              </div>
+                              
+                              <DialogFooter>
+                                <Button variant="outline" onClick={handleRemoveFunds}>
+                                  <MinusCircle className="h-4 w-4 mr-2" />
+                                  Remove Funds
+                                </Button>
+                                <Button onClick={handleAddFunds}>
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add Funds
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => setSelectedUser(user)}
+                              >
+                                <Pencil className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit User</DialogTitle>
+                                <DialogDescription>
+                                  Update user details
+                                </DialogDescription>
+                              </DialogHeader>
+                              
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-name">Full Name</Label>
+                                  <Input 
+                                    id="edit-name" 
+                                    value={selectedUser?.name}
+                                    onChange={(e) => setSelectedUser(prev => 
+                                      prev ? {...prev, name: e.target.value} : null
+                                    )}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-email">Email</Label>
+                                  <Input 
+                                    id="edit-email" 
+                                    type="email"
+                                    value={selectedUser?.email}
+                                    onChange={(e) => setSelectedUser(prev => 
+                                      prev ? {...prev, email: e.target.value} : null
+                                    )}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-phone">Phone Number</Label>
+                                  <Input 
+                                    id="edit-phone" 
+                                    value={selectedUser?.phone}
+                                    onChange={(e) => setSelectedUser(prev => 
+                                      prev ? {...prev, phone: e.target.value} : null
+                                    )}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <DialogFooter>
+                                <Button 
+                                  variant="destructive" 
+                                  onClick={() => {
+                                    if (selectedUser) {
+                                      handleDeleteUser(selectedUser.id);
+                                      setSelectedUser(null);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Delete User
+                                </Button>
+                                <Button onClick={handleEditUser}>Save Changes</Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                          
                           {user.verificationStatus === 'unverified' && (
                             <Button 
                               size="sm" 

@@ -46,6 +46,8 @@ const AdminSecurity: React.FC = () => {
   });
   
   const saveWhatsappConfig = () => {
+    // Save WhatsApp config to localStorage for demo purposes
+    localStorage.setItem('whatsappVerificationEnabled', whatsappConfig.enabled.toString());
     toast.success('WhatsApp verification settings saved');
   };
   
@@ -59,6 +61,17 @@ const AdminSecurity: React.FC = () => {
       toast.success('WhatsApp connection test successful');
     }, 1500);
   };
+  
+  // Load WhatsApp enabled state from localStorage on component mount
+  React.useEffect(() => {
+    const savedEnabledState = localStorage.getItem('whatsappVerificationEnabled');
+    if (savedEnabledState !== null) {
+      setWhatsappConfig(prev => ({
+        ...prev,
+        enabled: savedEnabledState === 'true'
+      }));
+    }
+  }, []);
   
   return (
     <div className="space-y-6">
