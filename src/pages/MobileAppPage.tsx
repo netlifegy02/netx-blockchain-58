@@ -186,16 +186,17 @@ const MobileAppPage: React.FC = () => {
                         </div>
                       </div>
                       
-                      <Button
-                        variant="outline"
-                        component="a"
-                        href="https://apps.apple.com"
-                        target="_blank"
+                      {/* Fixed: Replaced component prop with a regular anchor wrapped in Button */}
+                      <a 
+                        href="https://apps.apple.com" 
+                        target="_blank" 
                         rel="noopener noreferrer"
                       >
-                        <Tablet className="h-4 w-4 mr-2" />
-                        App Store
-                      </Button>
+                        <Button variant="outline">
+                          <Tablet className="h-4 w-4 mr-2" />
+                          App Store
+                        </Button>
+                      </a>
                     </div>
                   ))}
                 </div>

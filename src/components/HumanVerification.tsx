@@ -15,6 +15,7 @@ const HumanVerification: React.FC<HumanVerificationProps> = ({ onVerified }) => 
   const [userAnswer, setUserAnswer] = useState('');
   const [isVerified, setIsVerified] = useState(false);
   const [attempts, setAttempts] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
     generateChallenge();
@@ -45,24 +46,42 @@ const HumanVerification: React.FC<HumanVerificationProps> = ({ onVerified }) => 
   };
 
   const verifyAnswer = () => {
-    const expectedAnswer = atob((document.getElementById('verification-answer') as HTMLInputElement).value);
-    
-    if (userAnswer.toLowerCase().trim() === expectedAnswer) {
-      setIsVerified(true);
-      onVerified(true);
-      toast.success("Human verification successful");
-    } else {
-      setAttempts(attempts + 1);
-      setUserAnswer('');
-      
-      if (attempts >= 2) {
-        // After 3 failed attempts, generate a new challenge
+    setIsLoading(true);
+    // Add slight delay to simulate server-side verification
+    setTimeout(() => {
+      try {
+        const expectedAnswer = atob((document.getElementById('verification-answer') as HTMLInputElement).value);
+        
+        if (userAnswer.toLowerCase().trim() === expectedAnswer) {
+          setIsVerified(true);
+          onVerified(true);
+          toast.success("Human verification successful");
+        } else {
+          setAttempts(attempts + 1);
+          setUserAnswer('');
+          
+          if (attempts >= 2) {
+            // After 3 failed attempts, generate a new challenge
+            generateChallenge();
+            setAttempts(0);
+            toast.error("Too many incorrect attempts. New challenge generated.");
+          } else {
+            toast.error("Incorrect answer. Please try again.");
+          }
+        }
+      } catch (error) {
+        console.error("Verification error:", error);
+        toast.error("An error occurred during verification. Please try again.");
         generateChallenge();
-        setAttempts(0);
-        toast.error("Too many incorrect attempts. New challenge generated.");
-      } else {
-        toast.error("Incorrect answer. Please try again.");
+      } finally {
+        setIsLoading(false);
       }
+    }, 500);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      verifyAnswer();
     }
   };
 
@@ -83,8 +102,16 @@ const HumanVerification: React.FC<HumanVerificationProps> = ({ onVerified }) => 
                 onChange={(e) => setUserAnswer(e.target.value)}
                 placeholder="Your answer"
                 className="flex-1"
+                onKeyPress={handleKeyPress}
+                disabled={isLoading}
+                autoFocus
               />
-              <Button onClick={verifyAnswer}>Verify</Button>
+              <Button 
+                onClick={verifyAnswer} 
+                disabled={isLoading || userAnswer.trim() === ''}
+              >
+                {isLoading ? "Verifying..." : "Verify"}
+              </Button>
             </div>
             <input type="hidden" id="verification-answer" />
           </Card>
