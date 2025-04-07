@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -28,7 +28,7 @@ import {
 
 const AdminSecurity: React.FC = () => {
   const [whatsappConfig, setWhatsappConfig] = useState({
-    enabled: true,
+    enabled: false, // Default to disabled
     apiKey: 'wh_abc123def456',
     verificationTimeoutMinutes: 5,
     maxAttempts: 3,
@@ -45,8 +45,17 @@ const AdminSecurity: React.FC = () => {
     logPath: '/var/log/auth.log'
   });
   
+  // Load WhatsApp enabled state from localStorage on component mount
+  useEffect(() => {
+    const savedEnabledState = localStorage.getItem('whatsappVerificationEnabled');
+    setWhatsappConfig(prev => ({
+      ...prev,
+      enabled: savedEnabledState === 'true'
+    }));
+  }, []);
+  
   const saveWhatsappConfig = () => {
-    // Save WhatsApp config to localStorage for demo purposes
+    // Save WhatsApp config to localStorage
     localStorage.setItem('whatsappVerificationEnabled', whatsappConfig.enabled.toString());
     toast.success('WhatsApp verification settings saved');
   };
@@ -61,17 +70,6 @@ const AdminSecurity: React.FC = () => {
       toast.success('WhatsApp connection test successful');
     }, 1500);
   };
-  
-  // Load WhatsApp enabled state from localStorage on component mount
-  React.useEffect(() => {
-    const savedEnabledState = localStorage.getItem('whatsappVerificationEnabled');
-    if (savedEnabledState !== null) {
-      setWhatsappConfig(prev => ({
-        ...prev,
-        enabled: savedEnabledState === 'true'
-      }));
-    }
-  }, []);
   
   return (
     <div className="space-y-6">
@@ -208,6 +206,33 @@ const AdminSecurity: React.FC = () => {
                   <Button variant="outline" onClick={testWhatsappConnection}>
                     Test Connection
                   </Button>
+                </div>
+                
+                {/* Status indicator */}
+                <div className={`p-4 rounded-md border ${whatsappConfig.enabled ? 
+                  "bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-900/50" : 
+                  "bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-900/50"}`}>
+                  <div className="flex items-start gap-2">
+                    {whatsappConfig.enabled ? (
+                      <Shield className="h-5 w-5 text-green-600 dark:text-green-500 mt-0.5" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 mt-0.5" />
+                    )}
+                    <div>
+                      <h4 className={`text-sm font-medium ${whatsappConfig.enabled ? 
+                        "text-green-800 dark:text-green-400" : 
+                        "text-amber-800 dark:text-amber-400"}`}>
+                        WhatsApp Verification is currently {whatsappConfig.enabled ? "enabled" : "disabled"}
+                      </h4>
+                      <p className={`text-sm mt-1 ${whatsappConfig.enabled ? 
+                        "text-green-700 dark:text-green-500" : 
+                        "text-amber-700 dark:text-amber-500"}`}>
+                        {whatsappConfig.enabled ? 
+                          "Users are required to verify their WhatsApp number during registration." : 
+                          "Users can register without WhatsApp verification."}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

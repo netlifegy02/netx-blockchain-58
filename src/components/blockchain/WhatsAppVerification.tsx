@@ -19,7 +19,8 @@ import {
   Check, 
   RefreshCw,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Info
 } from 'lucide-react';
 
 interface WhatsAppVerificationProps {
@@ -119,12 +120,12 @@ const WhatsAppVerification: React.FC<WhatsAppVerificationProps> = ({
         <CardContent>
           <div className="bg-muted p-4 rounded-md border border-muted-foreground/20">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
               <div>
                 <p className="font-medium">WhatsApp verification is currently disabled</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   The administrator has temporarily disabled WhatsApp verification for all users. 
-                  Please check back later or contact support if you need assistance.
+                  Please proceed with registration without WhatsApp verification.
                 </p>
               </div>
             </div>

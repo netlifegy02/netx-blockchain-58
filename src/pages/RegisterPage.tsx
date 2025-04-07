@@ -32,7 +32,9 @@ import {
   Phone, 
   Lock, 
   KeySquare,
-  Wallet 
+  Wallet,
+  MessageSquare,
+  Info
 } from 'lucide-react';
 import WhatsAppVerification from '@/components/blockchain/WhatsAppVerification';
 
@@ -67,6 +69,7 @@ const RegisterPage = () => {
   const [recoveryPhrase, setRecoveryPhrase] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isWhatsappVerified, setIsWhatsappVerified] = useState(false);
+  const [isWhatsappEnabled, setIsWhatsappEnabled] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -87,6 +90,10 @@ const RegisterPage = () => {
     form.setValue('phoneNumber', ADMIN_ACCOUNT.phoneNumber);
     form.setValue('password', ADMIN_ACCOUNT.password);
     form.setValue('confirmPassword', ADMIN_ACCOUNT.password);
+    
+    // Check if WhatsApp verification is enabled
+    const verificationEnabled = localStorage.getItem('whatsappVerificationEnabled');
+    setIsWhatsappEnabled(verificationEnabled === 'true');
   }, [form]);
 
   const generateRecoveryPhrase = () => {
@@ -108,7 +115,7 @@ const RegisterPage = () => {
   };
   
   function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!isWhatsappVerified) {
+    if (isWhatsappEnabled && !isWhatsappVerified) {
       toast.error('Please verify your WhatsApp number before registering');
       return;
     }
@@ -122,6 +129,38 @@ const RegisterPage = () => {
     // Simulate API call to register user
     setTimeout(() => {
       toast.success('Registration successful! Your wallet has been created.');
+      
+      // For the first user, set them as admin
+      const existingUsers = localStorage.getItem('users');
+      if (!existingUsers) {
+        // This is the first user, make them an admin
+        const newUser = {
+          ...values,
+          isAdmin: true,
+          id: '1',
+          createdAt: new Date().toISOString()
+        };
+        localStorage.setItem('users', JSON.stringify([newUser]));
+        
+        // Store auth data to auto-login
+        localStorage.setItem('auth', JSON.stringify({
+          isAuthenticated: true,
+          user: newUser
+        }));
+        
+        toast.success('You have been registered as the administrator!');
+      } else {
+        // Add regular user
+        const users = JSON.parse(existingUsers);
+        const newUser = {
+          ...values,
+          isAdmin: false,
+          id: String(users.length + 1),
+          createdAt: new Date().toISOString()
+        };
+        localStorage.setItem('users', JSON.stringify([...users, newUser]));
+      }
+      
       setIsLoading(false);
     }, 2000);
   }
@@ -323,11 +362,39 @@ const RegisterPage = () => {
         </Card>
         
         <div className="lg:col-span-2 space-y-6">
-          <WhatsAppVerification 
-            phoneNumber={form.getValues().phoneNumber}
-            isVerified={isWhatsappVerified}
-            onVerification={setIsWhatsappVerified}
-          />
+          {isWhatsappEnabled ? (
+            <WhatsAppVerification 
+              phoneNumber={form.getValues().phoneNumber}
+              isVerified={isWhatsappVerified}
+              onVerification={setIsWhatsappVerified}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                  WhatsApp Verification
+                </CardTitle>
+                <CardDescription>
+                  WhatsApp verification is currently disabled
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-muted p-4 rounded-md border border-muted-foreground/20">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div>
+                      <p className="font-medium">WhatsApp verification is currently disabled</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        The administrator has disabled WhatsApp verification for all users. 
+                        You can proceed with registration without WhatsApp verification.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           <Card>
             <CardHeader>

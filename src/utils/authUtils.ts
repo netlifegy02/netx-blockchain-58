@@ -66,3 +66,31 @@ export const logout = (navigate: any) => {
   localStorage.removeItem('auth');
   navigate('/login');
 };
+
+// Check if the user is the first registered user (admin)
+export const isFirstUser = (): boolean => {
+  try {
+    const users = localStorage.getItem('users');
+    if (!users) return true; // No users yet, so first user will be admin
+    
+    const parsedUsers = JSON.parse(users);
+    return parsedUsers.length === 0;
+  } catch (error) {
+    console.error('Error checking if first user:', error);
+    return false;
+  }
+};
+
+// Check if current user is an admin
+export const isAdmin = (): boolean => {
+  try {
+    const authData = localStorage.getItem('auth');
+    if (!authData) return false;
+    
+    const parsed = JSON.parse(authData);
+    return parsed?.user?.isAdmin === true;
+  } catch (error) {
+    console.error('Error checking if admin:', error);
+    return false;
+  }
+};
