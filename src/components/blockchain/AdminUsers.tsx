@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -31,16 +31,20 @@ import {
   Pencil,
   Trash2,
   DollarSign,
-  MinusCircle
+  MinusCircle,
+  Upload,
+  Image
 } from 'lucide-react';
 import { formatNumber } from '@/lib/blockchain-utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { fileToBase64 } from '@/utils/authUtils';
 
 interface UserAccount {
   id: string;
   name: string;
+  username?: string;
   email: string;
   phone: string;
   tokens: number;
@@ -64,10 +68,15 @@ const AdminUsers: React.FC = () => {
   const [fundAmount, setFundAmount] = useState('');
   const [newUser, setNewUser] = useState({
     name: '',
+    username: '',
     email: '',
     phone: '',
     password: '',
+    avatar: ''
   });
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     const loadUsers = async () => {
@@ -84,6 +93,7 @@ const AdminUsers: React.FC = () => {
           mockUsers = Array.from({ length: 12 }, (_, i) => ({
             id: `user-${i + 100}`,
             name: `User ${['John', 'Mary', 'David', 'Sarah', 'Michael', 'Jennifer', 'Robert', 'Lisa', 'Thomas', 'Emily'][i % 10]} ${String.fromCharCode(65 + i % 26)}`,
+            username: `user${i + 100}`,
             email: `user${i + 100}@example.com`,
             phone: `+1 ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
             tokens: Math.floor(Math.random() * 5),
@@ -127,7 +137,8 @@ const AdminUsers: React.FC = () => {
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.phone.includes(searchQuery)
+    user.phone.includes(searchQuery) ||
+    (user.username && user.username.toLowerCase().includes(searchQuery.toLowerCase()))
   );
   
   const handleVerifyUser = (userId: string) => {
@@ -162,9 +173,35 @@ const AdminUsers: React.FC = () => {
     toast.success('User has been deleted');
   };
   
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      try {
+        const base64Image = await fileToBase64(files[0]);
+        
+        if (isEdit && selectedUser) {
+          setSelectedUser({...selectedUser, avatar: base64Image});
+        } else {
+          setNewUser({...newUser, avatar: base64Image});
+        }
+        
+        toast.success('Image uploaded successfully');
+      } catch (error) {
+        console.error('Error converting image:', error);
+        toast.error('Failed to upload image');
+      }
+    }
+  };
+  
   const handleAddUser = () => {
-    if (!newUser.name || !newUser.email || !newUser.password) {
+    if (!newUser.name || !newUser.email || !newUser.password || !newUser.username) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    // Check if username already exists
+    if (users.some(user => user.username?.toLowerCase() === newUser.username.toLowerCase())) {
+      toast.error('Username already exists');
       return;
     }
     
@@ -173,6 +210,7 @@ const AdminUsers: React.FC = () => {
     const userToAdd: UserAccount = {
       id: newId,
       name: newUser.name,
+      username: newUser.username,
       email: newUser.email,
       phone: newUser.phone || '',
       tokens: 0,
@@ -180,7 +218,8 @@ const AdminUsers: React.FC = () => {
       nodes: 0,
       status: 'active',
       registeredAt: new Date().toISOString(),
-      verificationStatus: 'unverified'
+      verificationStatus: 'unverified',
+      avatar: newUser.avatar || undefined
     };
     
     setUsers([userToAdd, ...users]);
@@ -188,19 +227,23 @@ const AdminUsers: React.FC = () => {
     // Also add to registered users for login
     const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
     registeredUsers.push({
-      username: newUser.email,
+      username: newUser.username,
       password: newUser.password,
       email: newUser.email,
+      name: newUser.name,
       phone: newUser.phone,
-      role: 'user'
+      role: 'user',
+      isFullySetup: true
     });
     localStorage.setItem('registeredUsers', JSON.stringify(registeredUsers));
     
     setNewUser({
       name: '',
+      username: '',
       email: '',
       phone: '',
       password: '',
+      avatar: ''
     });
     
     setIsAddUserOpen(false);
@@ -209,6 +252,16 @@ const AdminUsers: React.FC = () => {
   
   const handleEditUser = () => {
     if (!selectedUser) return;
+    
+    // Check if username is being changed and if it already exists
+    if (selectedUser.username && 
+        users.some(user => 
+          user.id !== selectedUser.id && 
+          user.username?.toLowerCase() === selectedUser.username.toLowerCase()
+        )) {
+      toast.error('Username already exists');
+      return;
+    }
     
     setUsers(users.map(user => 
       user.id === selectedUser.id ? selectedUser : user
@@ -331,7 +384,7 @@ const AdminUsers: React.FC = () => {
                   Add User
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-md">
                 <DialogHeader>
                   <DialogTitle>Add New User</DialogTitle>
                   <DialogDescription>
@@ -340,8 +393,38 @@ const AdminUsers: React.FC = () => {
                 </DialogHeader>
                 
                 <div className="space-y-4 py-4">
+                  {/* Profile Picture Upload */}
+                  <div className="flex flex-col items-center space-y-2">
+                    <div className="relative">
+                      <Avatar className="w-24 h-24">
+                        <AvatarImage src={newUser.avatar} />
+                        <AvatarFallback className="text-xl">
+                          {newUser.name ? newUser.name.charAt(0).toUpperCase() : <User className="h-12 w-12" />}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="absolute bottom-0 right-0 rounded-full w-8 h-8 p-0"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Upload className="h-4 w-4" />
+                        <span className="sr-only">Upload</span>
+                      </Button>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileChange(e)}
+                      className="hidden"
+                    />
+                    <span className="text-sm text-muted-foreground">Click to upload profile picture</span>
+                  </div>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
+                    <Label htmlFor="name">Full Name*</Label>
                     <Input 
                       id="name" 
                       value={newUser.name}
@@ -351,7 +434,17 @@ const AdminUsers: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="username">Username*</Label>
+                    <Input 
+                      id="username" 
+                      value={newUser.username}
+                      onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                      placeholder="johndoe"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email*</Label>
                     <Input 
                       id="email" 
                       type="email"
@@ -372,7 +465,7 @@ const AdminUsers: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">Password*</Label>
                     <Input 
                       id="password" 
                       type="password"
@@ -394,7 +487,7 @@ const AdminUsers: React.FC = () => {
           <div className="relative mt-4">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Search users by name, email or phone..." 
+              placeholder="Search users by name, username, email or phone..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -441,7 +534,9 @@ const AdminUsers: React.FC = () => {
                           </Avatar>
                           <div>
                             <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {user.username ? `@${user.username} · ` : ''}{user.email}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
@@ -539,18 +634,25 @@ const AdminUsers: React.FC = () => {
                             </DialogContent>
                           </Dialog>
                           
-                          <Dialog>
+                          <Dialog open={isEditUserOpen && selectedUser?.id === user.id} 
+                                 onOpenChange={(open) => {
+                                   setIsEditUserOpen(open);
+                                   if (open) setSelectedUser(user);
+                                 }}>
                             <DialogTrigger asChild>
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                onClick={() => setSelectedUser(user)}
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setIsEditUserOpen(true);
+                                }}
                               >
                                 <Pencil className="h-4 w-4 mr-1" />
                                 Edit
                               </Button>
                             </DialogTrigger>
-                            <DialogContent>
+                            <DialogContent className="max-w-md">
                               <DialogHeader>
                                 <DialogTitle>Edit User</DialogTitle>
                                 <DialogDescription>
@@ -559,6 +661,36 @@ const AdminUsers: React.FC = () => {
                               </DialogHeader>
                               
                               <div className="space-y-4 py-4">
+                                {/* Edit Profile Picture */}
+                                <div className="flex flex-col items-center space-y-2">
+                                  <div className="relative">
+                                    <Avatar className="w-24 h-24">
+                                      <AvatarImage src={selectedUser?.avatar} />
+                                      <AvatarFallback className="text-xl">
+                                        {selectedUser?.name ? selectedUser.name.charAt(0).toUpperCase() : <User className="h-12 w-12" />}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="absolute bottom-0 right-0 rounded-full w-8 h-8 p-0"
+                                      onClick={() => editFileInputRef.current?.click()}
+                                    >
+                                      <Upload className="h-4 w-4" />
+                                      <span className="sr-only">Upload</span>
+                                    </Button>
+                                  </div>
+                                  <input
+                                    ref={editFileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => handleFileChange(e, true)}
+                                    className="hidden"
+                                  />
+                                  <span className="text-sm text-muted-foreground">Click to change profile picture</span>
+                                </div>
+                                
                                 <div className="space-y-2">
                                   <Label htmlFor="edit-name">Full Name</Label>
                                   <Input 
@@ -566,6 +698,17 @@ const AdminUsers: React.FC = () => {
                                     value={selectedUser?.name}
                                     onChange={(e) => setSelectedUser(prev => 
                                       prev ? {...prev, name: e.target.value} : null
+                                    )}
+                                  />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-username">Username</Label>
+                                  <Input 
+                                    id="edit-username" 
+                                    value={selectedUser?.username || ''}
+                                    onChange={(e) => setSelectedUser(prev => 
+                                      prev ? {...prev, username: e.target.value} : null
                                     )}
                                   />
                                 </div>
@@ -601,6 +744,7 @@ const AdminUsers: React.FC = () => {
                                     if (selectedUser) {
                                       handleDeleteUser(selectedUser.id);
                                       setSelectedUser(null);
+                                      setIsEditUserOpen(false);
                                     }
                                   }}
                                 >

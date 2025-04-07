@@ -1,4 +1,3 @@
-
 export const isAuthenticated = (): boolean => {
   try {
     const authData = localStorage.getItem('auth');
@@ -163,4 +162,14 @@ export const isAccountFullySetup = (): boolean => {
     console.error('Error checking if account is fully set up:', error);
     return false;
   }
+};
+
+// New function to convert file to base64 string for profile image storage
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+    reader.readAsDataURL(file);
+  });
 };

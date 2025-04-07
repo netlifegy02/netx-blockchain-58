@@ -16,6 +16,7 @@ import Cashout from '@/components/blockchain/Cashout';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ShieldAlert, Database, Users, Lock, ArrowLeftRight, DollarSign, Smartphone } from 'lucide-react';
+import { isAccountFullySetup, markAccountAsSetup } from '@/utils/authUtils';
 
 const AdminPage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -26,6 +27,11 @@ const AdminPage = () => {
     const loadData = async () => {
       setIsLoading(true);
       try {
+        // Check if admin account is fully set up, if not, mark it as set up
+        if (!isAccountFullySetup()) {
+          markAccountAsSetup();
+        }
+        
         // Simulate API call delay
         await new Promise(resolve => setTimeout(resolve, 800));
         

@@ -43,6 +43,9 @@ const HumanVerification: React.FC<HumanVerificationProps> = ({ onVerified }) => 
     // In a real implementation, you'd want to validate this server-side
     const base64Answer = btoa(challenges[randomIndex].answer.toLowerCase());
     (document.getElementById('verification-answer') as HTMLInputElement).value = base64Answer;
+    
+    // Reset user answer when generating a new challenge
+    setUserAnswer('');
   };
 
   const verifyAnswer = () => {
@@ -60,13 +63,14 @@ const HumanVerification: React.FC<HumanVerificationProps> = ({ onVerified }) => 
           setAttempts(attempts + 1);
           setUserAnswer('');
           
+          // Automatically generate a new challenge on incorrect answer
+          generateChallenge();
+          
           if (attempts >= 2) {
-            // After 3 failed attempts, generate a new challenge
-            generateChallenge();
             setAttempts(0);
             toast.error("Too many incorrect attempts. New challenge generated.");
           } else {
-            toast.error("Incorrect answer. Please try again.");
+            toast.error("Incorrect answer. New challenge generated.");
           }
         }
       } catch (error) {
