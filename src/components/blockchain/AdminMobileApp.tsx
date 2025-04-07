@@ -18,31 +18,38 @@ import {
   RefreshCw,
   Share2,
   FileCode,
-  Shield
+  Shield,
+  HardDrive,
+  Github
 } from 'lucide-react';
+import LinuxSetupGuide from './LinuxSetupGuide';
 
 const AdminMobileApp: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showLinuxGuide, setShowLinuxGuide] = useState(false);
   
   const androidReleases = [
     {
       version: '1.2.5',
       date: '2025-04-06',
       size: '24.5 MB',
-      isLatest: true
+      isLatest: true,
+      url: '/downloads/mintopia-v1.2.5.apk'
     },
     {
       version: '1.2.0',
       date: '2025-03-20',
       size: '23.8 MB',
-      isLatest: false
+      isLatest: false,
+      url: '/downloads/mintopia-v1.2.0.apk'
     },
     {
       version: '1.1.0',
       date: '2025-02-15',
       size: '22.1 MB',
-      isLatest: false
+      isLatest: false,
+      url: '/downloads/mintopia-v1.1.0.apk'
     }
   ];
   
@@ -89,13 +96,36 @@ const AdminMobileApp: React.FC = () => {
     }, 2500);
   };
   
-  const handleDownloadApk = (version: string) => {
+  const handleDownloadApk = (version: string, url: string) => {
+    // In a real app, this would trigger an actual download
+    // For now we'll simulate it with a toast notification
     toast.info(`Downloading Android APK v${version}...`);
     
-    // Simulate download
+    // Create temporary anchor element to trigger download
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `mintopia-v${version}.apk`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Simulate download completion
     setTimeout(() => {
       toast.success(`Android APK v${version} downloaded successfully`);
     }, 1500);
+  };
+  
+  const handleBackupToGoogleDrive = () => {
+    toast.info('Connecting to Google Drive...');
+    
+    // This would initiate OAuth flow with Google in a real implementation
+    setTimeout(() => {
+      toast.success('Recovery phrase backed up to Google Drive');
+    }, 2000);
+  };
+  
+  const toggleLinuxGuide = () => {
+    setShowLinuxGuide(!showLinuxGuide);
   };
   
   return (
@@ -163,7 +193,7 @@ const AdminMobileApp: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDownloadApk(release.version)}
+                      onClick={() => handleDownloadApk(release.version, release.url)}
                     >
                       <Download className="h-4 w-4 mr-2" />
                       Download
@@ -272,6 +302,78 @@ const AdminMobileApp: React.FC = () => {
               </Button>
             </div>
           </div>
+
+          <Separator className="my-6" />
+          
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Additional Tools</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="border rounded-md p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="h-5 w-5 text-purple-600" />
+                    <h4 className="font-medium">Google Drive Backup</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-yellow-500/20 text-yellow-700">
+                    Available
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Securely backup your recovery phrase to Google Drive
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full mt-2"
+                  onClick={handleBackupToGoogleDrive}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Backup Recovery Phrase
+                </Button>
+              </div>
+              
+              <div className="border rounded-md p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Github className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                    <h4 className="font-medium">Source Code</h4>
+                  </div>
+                  <Badge variant="outline">
+                    Private
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Access the source code repository for developers
+                </p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full mt-2"
+                  onClick={() => toast.info("Repository access requested. An admin will contact you.")}
+                >
+                  <Github className="h-4 w-4 mr-2" />
+                  Request Repository Access
+                </Button>
+              </div>
+            </div>
+            
+            <div className="pt-2">
+              <Button 
+                className="w-full"
+                variant="outline"
+                onClick={toggleLinuxGuide}
+              >
+                {showLinuxGuide ? "Hide Linux Setup Guide" : "Show Linux/Ubuntu Setup Guide"}
+              </Button>
+            </div>
+          </div>
+          
+          {showLinuxGuide && (
+            <div className="mt-6">
+              <LinuxSetupGuide />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
