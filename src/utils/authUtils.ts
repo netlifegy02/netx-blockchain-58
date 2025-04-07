@@ -94,3 +94,19 @@ export const isAdmin = (): boolean => {
     return false;
   }
 };
+
+// Check if username is available
+export const isUsernameAvailable = (username: string): boolean => {
+  try {
+    const users = localStorage.getItem('users');
+    if (!users) return true; // No users yet
+    
+    const parsedUsers = JSON.parse(users);
+    return !parsedUsers.some((user: any) => 
+      user.username?.toLowerCase() === username.toLowerCase()
+    );
+  } catch (error) {
+    console.error('Error checking username availability:', error);
+    return false;
+  }
+};

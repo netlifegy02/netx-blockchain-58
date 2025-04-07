@@ -34,11 +34,19 @@ import {
   KeySquare,
   Wallet,
   MessageSquare,
-  Info
+  Info,
+  Check,
+  X,
+  Shield
 } from 'lucide-react';
 import WhatsAppVerification from '@/components/blockchain/WhatsAppVerification';
+import HumanVerification from '@/components/HumanVerification';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const formSchema = z.object({
+  username: z.string().min(3, {
+    message: "Username must be at least 3 characters.",
+  }),
   fullName: z.string().min(2, {
     message: "Full name must be at least 2 characters.",
   }),
@@ -60,6 +68,9 @@ const formSchema = z.object({
   confirmPassword: z.string().min(8, {
     message: "Confirm password must be at least 8 characters.",
   }),
+  humanVerificationComplete: z.boolean().refine(val => val === true, {
+    message: "You must verify you are human."
+  })
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -70,10 +81,12 @@ const RegisterPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isWhatsappVerified, setIsWhatsappVerified] = useState(false);
   const [isWhatsappEnabled, setIsWhatsappEnabled] = useState(false);
+  const [humanVerified, setHumanVerified] = useState(false);
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      username: "",
       fullName: "",
       email: "",
       phoneNumber: "",
@@ -81,6 +94,7 @@ const RegisterPage = () => {
       location: "",
       password: "",
       confirmPassword: "",
+      humanVerificationComplete: false
     },
   });
   
@@ -90,11 +104,17 @@ const RegisterPage = () => {
     form.setValue('phoneNumber', ADMIN_ACCOUNT.phoneNumber);
     form.setValue('password', ADMIN_ACCOUNT.password);
     form.setValue('confirmPassword', ADMIN_ACCOUNT.password);
+    form.setValue('username', ADMIN_ACCOUNT.username);
     
     // Check if WhatsApp verification is enabled
     const verificationEnabled = localStorage.getItem('whatsappVerificationEnabled');
     setIsWhatsappEnabled(verificationEnabled === 'true');
   }, [form]);
+
+  // Update the form value when human verification status changes
+  useEffect(() => {
+    form.setValue('humanVerificationComplete', humanVerified);
+  }, [humanVerified, form]);
 
   const generateRecoveryPhrase = () => {
     // Simulated recovery phrase generation
@@ -117,6 +137,11 @@ const RegisterPage = () => {
   function onSubmit(values: z.infer<typeof formSchema>) {
     if (isWhatsappEnabled && !isWhatsappVerified) {
       toast.error('Please verify your WhatsApp number before registering');
+      return;
+    }
+    
+    if (!values.humanVerificationComplete) {
+      toast.error('Please verify you are human before registering');
       return;
     }
     
@@ -179,6 +204,23 @@ const RegisterPage = () => {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-10" placeholder="johndoe123" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="fullName"
@@ -295,6 +337,37 @@ const RegisterPage = () => {
                             <Input className="pl-10" type="password" {...field} />
                           </div>
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="space-y-4 border border-border rounded-md p-4">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <h3 className="font-medium">Human Verification</h3>
+                  </div>
+                  
+                  <HumanVerification onVerified={setHumanVerified} />
+                  
+                  <FormField
+                    control={form.control}
+                    name="humanVerificationComplete"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-2">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={!humanVerified}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            I confirm I have completed human verification
+                          </FormLabel>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
