@@ -128,10 +128,6 @@ const LoginPage: React.FC = () => {
             </CardFooter>
           </form>
         </Card>
-        
-        <div className="mt-4 text-center text-sm text-muted-foreground">
-          Demo credentials: netlifegy / K199p2994lm
-        </div>
       </div>
     </div>
   );

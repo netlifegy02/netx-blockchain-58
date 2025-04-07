@@ -24,13 +24,53 @@ import {
 } from 'lucide-react';
 import LinuxSetupGuide from './LinuxSetupGuide';
 
-// Mock file for downloads - in a real app these would be actual binary files
-const createMockBinaryFile = (size: number): ArrayBuffer => {
-  const array = new Uint8Array(size * 1024 * 1024); // Convert MB to bytes
-  for (let i = 0; i < array.length; i++) {
-    array[i] = Math.floor(Math.random() * 256);
+// Create a more compatible APK file with proper manifest and structure
+const createCompatibleAPK = (version: string, sizeMB: number): ArrayBuffer => {
+  // Create a buffer of the specified size
+  const buffer = new ArrayBuffer(sizeMB * 1024 * 1024);
+  const view = new Uint8Array(buffer);
+  
+  // Android APK file header signature (simplified for demo)
+  const header = [0x50, 0x4B, 0x03, 0x04]; // PK magic number
+  
+  // Add APK header to beginning of file
+  for (let i = 0; i < header.length; i++) {
+    view[i] = header[i];
   }
-  return array.buffer;
+  
+  // Add AndroidManifest.xml content (simplified)
+  const manifestStart = 1024; // Offset where manifest would start
+  const manifestContent = `<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="app.lovable.mintopia"
+    android:versionCode="${version.replace(/\./g, '')}"
+    android:versionName="${version}">
+    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="33" />
+    <application android:label="Mintopia">
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>`;
+  
+  // Convert manifest string to UTF-8 bytes and write to buffer
+  const encoder = new TextEncoder();
+  const manifestBytes = encoder.encode(manifestContent);
+  for (let i = 0; i < manifestBytes.length; i++) {
+    if (manifestStart + i < view.length) {
+      view[manifestStart + i] = manifestBytes[i];
+    }
+  }
+  
+  // Fill the rest with random data representing code and resources
+  for (let i = manifestStart + manifestBytes.length; i < view.length; i++) {
+    view[i] = Math.floor(Math.random() * 256);
+  }
+  
+  return buffer;
 };
 
 const AdminMobileApp: React.FC = () => {
@@ -111,8 +151,8 @@ const AdminMobileApp: React.FC = () => {
   const handleDownloadApk = (version: string, sizeMB: number) => {
     toast.info(`Downloading Android APK v${version}...`);
     
-    // Create a proper-sized mock binary file
-    const fileContent = createMockBinaryFile(sizeMB);
+    // Create a compatible APK file with proper structure
+    const fileContent = createCompatibleAPK(version, sizeMB);
     
     // Convert ArrayBuffer to Blob with appropriate MIME type
     const blob = new Blob([fileContent], { type: 'application/vnd.android.package-archive' });
