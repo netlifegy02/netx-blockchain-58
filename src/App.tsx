@@ -13,6 +13,7 @@ import RegisterPage from "./pages/RegisterPage";
 import MaintenancePage from "./pages/MaintenancePage";
 import NotFound from "./pages/NotFound";
 import LoginPage from "./pages/LoginPage";
+import MobileAppPage from "./pages/MobileAppPage";
 import { isAuthenticated } from "./utils/authUtils";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,11 @@ const App = () => (
           <Route path="/settings" element={
             <ProtectedRoute>
               <SettingsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/mobile-app" element={
+            <ProtectedRoute>
+              <MobileAppPage />
             </ProtectedRoute>
           } />
           <Route path="/register" element={<RegisterPage />} />
