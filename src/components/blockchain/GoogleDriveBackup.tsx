@@ -27,8 +27,8 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
-  Google,
-  Drive
+  CloudCog,
+  HardDrive
 } from 'lucide-react';
 
 interface GoogleDriveBackupProps {
@@ -93,7 +93,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Drive className="h-5 w-5 text-primary" />
+          <HardDrive className="h-5 w-5 text-primary" />
           Google Drive Backup Configuration
         </CardTitle>
         <CardDescription>
@@ -104,7 +104,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-md bg-secondary/30">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Google className="h-5 w-5 text-blue-600" />
+              <CloudCog className="h-5 w-5 text-blue-600" />
               <h3 className="text-lg font-medium">Google Drive Integration</h3>
             </div>
             <p className="text-sm text-muted-foreground">
