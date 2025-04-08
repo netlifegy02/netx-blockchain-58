@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -14,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
-  Cloud,
+  CloudOff,
   Database,
   Lock,
   RefreshCw,
@@ -28,7 +29,8 @@ import {
   Trash2,
   CloudCog,
   HardDrive,
-  AlertCircle
+  AlertCircle,
+  Cloud
 } from 'lucide-react';
 import {
   Dialog,
@@ -66,6 +68,30 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [setupComplete, setSetupComplete] = useState(false);
   
+  // Load existing configuration on component mount
+  useEffect(() => {
+    const loadConfig = () => {
+      try {
+        const savedConfig = localStorage.getItem('googleDriveConfig');
+        if (savedConfig) {
+          const config = JSON.parse(savedConfig);
+          setConnected(config.isConnected || false);
+          setUserEmail(config.email || '');
+          setFolderPath(config.folderPath || 'mintopia-backups');
+          setAutoBackup(config.autoBackup !== undefined ? config.autoBackup : true);
+          setBackupIntervals(config.backupIntervals || 'daily');
+          setEncryptBackups(config.encryptBackups !== undefined ? config.encryptBackups : true);
+          setLastBackupDate(config.lastBackupDate || null);
+          setSetupComplete(config.setupComplete || false);
+        }
+      } catch (error) {
+        console.error('Error loading Google Drive configuration:', error);
+      }
+    };
+    
+    loadConfig();
+  }, []);
+  
   const handleConnectGoogleDrive = () => {
     setShowAuthDialog(true);
   };
@@ -87,6 +113,12 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
       setShowAuthDialog(false);
       toast.success('Connected to Google Drive successfully');
       
+      // Save the connection state
+      saveConfiguration({
+        isConnected: true,
+        email: googleAuthEmail
+      });
+      
       // Mark setup as complete
       completeSetup();
     }, 2000);
@@ -95,7 +127,13 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
   const completeSetup = () => {
     markAccountAsSetup();
     setSetupComplete(true);
-    toast.success('Admin account setup completed');
+    
+    // Update local storage with setup completion
+    saveConfiguration({
+      setupComplete: true
+    });
+    
+    toast.success('Google Drive backup configuration completed');
   };
   
   const handleDisconnectGoogleDrive = () => {
@@ -105,6 +143,12 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
       setConnected(false);
       setUserEmail('');
       toast.success('Disconnected from Google Drive');
+      
+      // Save the disconnected state
+      saveConfiguration({
+        isConnected: false,
+        email: ''
+      });
     }, 1000);
   };
   
@@ -116,16 +160,62 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
       setIsBackingUp(false);
       const now = new Date().toISOString();
       setLastBackupDate(now);
+      
+      // Save the backup date
+      saveConfiguration({
+        lastBackupDate: now
+      });
+      
       toast.success('Backup completed successfully');
     }, 3000);
   };
   
+  const saveConfiguration = (updates = {}) => {
+    try {
+      // Get current config or create a new one
+      const existingConfig = localStorage.getItem('googleDriveConfig');
+      let config = existingConfig ? JSON.parse(existingConfig) : {};
+      
+      // Create the updated configuration
+      const updatedConfig = {
+        ...config,
+        isConnected: connected,
+        email: userEmail,
+        folderPath: folderPath,
+        autoBackup: autoBackup,
+        backupIntervals: backupIntervals,
+        encryptBackups: encryptBackups,
+        ...updates
+      };
+      
+      // Save to localStorage
+      localStorage.setItem('googleDriveConfig', JSON.stringify(updatedConfig));
+      
+      return true;
+    } catch (error) {
+      console.error('Error saving Google Drive configuration:', error);
+      return false;
+    }
+  };
+  
   const handleSaveSettings = () => {
-    toast.success('Google Drive backup settings saved');
-    
-    // Mark setup as complete if not already
-    if (!setupComplete) {
-      completeSetup();
+    if (saveConfiguration()) {
+      toast.success('Google Drive backup settings saved');
+      
+      // Mark setup as complete if not already
+      if (!setupComplete) {
+        completeSetup();
+      }
+    } else {
+      toast.error('Failed to save settings');
+    }
+  };
+  
+  const updateFolderPath = () => {
+    if (saveConfiguration({ folderPath })) {
+      toast.success('Folder path updated');
+    } else {
+      toast.error('Failed to update folder path');
     }
   };
   
@@ -175,6 +265,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
                 onClick={handleDisconnectGoogleDrive}
                 className="shrink-0"
               >
+                <CloudOff className="h-4 w-4 mr-2" />
                 Disconnect
               </Button>
             ) : (
@@ -199,7 +290,7 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
                     onChange={(e) => setFolderPath(e.target.value)}
                     placeholder="mintopia-backups"
                   />
-                  <Button variant="outline" onClick={() => toast.success('Folder path updated')}>
+                  <Button variant="outline" onClick={updateFolderPath}>
                     Update
                   </Button>
                 </div>
@@ -220,7 +311,10 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
                   </div>
                   <Switch 
                     checked={autoBackup} 
-                    onCheckedChange={setAutoBackup} 
+                    onCheckedChange={(checked) => {
+                      setAutoBackup(checked);
+                      saveConfiguration({ autoBackup: checked });
+                    }}
                   />
                 </div>
                 
@@ -232,21 +326,30 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
                         <Button 
                           variant={backupIntervals === 'daily' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => setBackupIntervals('daily')}
+                          onClick={() => {
+                            setBackupIntervals('daily');
+                            saveConfiguration({ backupIntervals: 'daily' });
+                          }}
                         >
                           Daily
                         </Button>
                         <Button
                           variant={backupIntervals === 'weekly' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => setBackupIntervals('weekly')}
+                          onClick={() => {
+                            setBackupIntervals('weekly');
+                            saveConfiguration({ backupIntervals: 'weekly' });
+                          }}
                         >
                           Weekly
                         </Button>
                         <Button
                           variant={backupIntervals === 'monthly' ? 'default' : 'outline'}
                           size="sm"
-                          onClick={() => setBackupIntervals('monthly')}
+                          onClick={() => {
+                            setBackupIntervals('monthly');
+                            saveConfiguration({ backupIntervals: 'monthly' });
+                          }}
                         >
                           Monthly
                         </Button>
@@ -290,7 +393,10 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
                   </div>
                   <Switch 
                     checked={encryptBackups} 
-                    onCheckedChange={setEncryptBackups} 
+                    onCheckedChange={(checked) => {
+                      setEncryptBackups(checked);
+                      saveConfiguration({ encryptBackups: checked });
+                    }}
                   />
                 </div>
                 
@@ -328,7 +434,10 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
                   <div className="pt-4 space-y-4">
                     <div className="space-y-2">
                       <Label>Version Control</Label>
-                      <select className="w-full p-2 border rounded">
+                      <select 
+                        className="w-full p-2 border rounded"
+                        onChange={(e) => saveConfiguration({ versionControl: e.target.value })}
+                      >
                         <option value="5">Keep last 5 backups</option>
                         <option value="10">Keep last 10 backups</option>
                         <option value="all">Keep all backups</option>
@@ -340,7 +449,10 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
                     
                     <div className="space-y-2">
                       <Label>Compression Level</Label>
-                      <select className="w-full p-2 border rounded">
+                      <select 
+                        className="w-full p-2 border rounded"
+                        onChange={(e) => saveConfiguration({ compressionLevel: e.target.value })}
+                      >
                         <option value="low">Low (Faster)</option>
                         <option value="medium">Medium</option>
                         <option value="high">High (Smaller Size)</option>
@@ -351,7 +463,12 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <input type="checkbox" id="backup-notification" defaultChecked />
+                      <input 
+                        type="checkbox" 
+                        id="backup-notification" 
+                        defaultChecked 
+                        onChange={(e) => saveConfiguration({ sendNotifications: e.target.checked })}
+                      />
                       <Label htmlFor="backup-notification" className="text-sm">
                         Send email notification after backup
                       </Label>
@@ -415,7 +532,19 @@ const GoogleDriveBackup: React.FC<GoogleDriveBackupProps> = ({
           <Separator />
           
           <div className="flex justify-between">
-            <Button variant="outline" onClick={() => toast.info('Settings reset')}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                // Reset form fields but don't disconnect
+                setFolderPath('mintopia-backups');
+                setAutoBackup(true);
+                setBackupIntervals('daily');
+                setEncryptBackups(true);
+                setBackupPassword('');
+                setAdvanced(false);
+                toast.info('Settings reset');
+              }}
+            >
               Reset Settings
             </Button>
             <Button onClick={handleSaveSettings}>

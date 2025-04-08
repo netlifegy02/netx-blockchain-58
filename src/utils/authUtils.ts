@@ -1,4 +1,3 @@
-
 export const isAuthenticated = (): boolean => {
   try {
     const authData = localStorage.getItem('auth');
@@ -47,13 +46,32 @@ export const updateUserInfo = (updates: any) => {
     
     const parsed = JSON.parse(authData);
     
-    localStorage.setItem('auth', JSON.stringify({
+    const updatedAuth = {
       ...parsed,
       user: {
         ...parsed.user,
         ...updates
       }
-    }));
+    };
+    
+    localStorage.setItem('auth', JSON.stringify(updatedAuth));
+    
+    // Also update the user in the users array if it exists
+    const users = localStorage.getItem('users');
+    if (users) {
+      const parsedUsers = JSON.parse(users);
+      const updatedUsers = parsedUsers.map((user: any) => {
+        if (user.username === parsed.user.username) {
+          return {
+            ...user,
+            ...updates
+          };
+        }
+        return user;
+      });
+      
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+    }
     
     return true;
   } catch (error) {
@@ -146,6 +164,24 @@ export const markAccountAsSetup = () => {
       localStorage.setItem('users', JSON.stringify(updatedUsers));
     }
     
+    // Update admin setup in securityConfig to track setup completion
+    let securityConfig = {};
+    try {
+      const existingConfig = localStorage.getItem('securityConfig');
+      if (existingConfig) {
+        securityConfig = JSON.parse(existingConfig);
+      }
+      
+      securityConfig = {
+        ...securityConfig,
+        adminSetupComplete: true
+      };
+      
+      localStorage.setItem('securityConfig', JSON.stringify(securityConfig));
+    } catch (err) {
+      console.error('Error updating security config:', err);
+    }
+    
     console.log('Account marked as fully set up');
     return true;
   } catch (error) {
@@ -157,6 +193,24 @@ export const markAccountAsSetup = () => {
 // Check if user account is fully set up
 export const isAccountFullySetup = (): boolean => {
   try {
+    // Check if admin setup is complete in security config
+    const securityConfig = localStorage.getItem('securityConfig');
+    if (securityConfig) {
+      const parsedConfig = JSON.parse(securityConfig);
+      if (parsedConfig.adminSetupComplete === true) {
+        return true;
+      }
+    }
+    
+    // Check if Google Drive is connected
+    const googleDriveConfig = localStorage.getItem('googleDriveConfig');
+    if (googleDriveConfig) {
+      const parsedConfig = JSON.parse(googleDriveConfig);
+      if (parsedConfig.isConnected === true && parsedConfig.setupComplete === true) {
+        return true;
+      }
+    }
+    
     const authData = localStorage.getItem('auth');
     if (!authData) return false;
     
@@ -210,6 +264,17 @@ export const getSetupCompletionStatus = () => {
     if (driveConfig) {
       const parsedConfig = JSON.parse(driveConfig);
       setupTasks.googleDrive = parsedConfig.isConnected === true;
+      
+      // If Google Drive is connected, also update the account setup status
+      if (parsedConfig.isConnected === true && !setupTasks.accountInfo) {
+        const authData = localStorage.getItem('auth');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          if (parsed?.user) {
+            setupTasks.accountInfo = true;
+          }
+        }
+      }
     }
     
     // Check security setup

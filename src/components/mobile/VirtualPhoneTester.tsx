@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Smartphone, Check, X, RefreshCw, RotateCw } from 'lucide-react';
+import { Smartphone, Check, X, RefreshCw, RotateCw, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface VirtualPhoneTesterProps {
@@ -44,14 +44,18 @@ const VirtualPhoneTester: React.FC<VirtualPhoneTesterProps> = ({
   ]);
   const [allPassed, setAllPassed] = useState(false);
   const [isReset, setIsReset] = useState(true);
+  const [viewDetails, setViewDetails] = useState(false);
+  const [selectedFailedTest, setSelectedFailedTest] = useState<TestResult | null>(null);
   
   const startTesting = () => {
     setIsReset(false);
     setIsRunning(true);
     setAllPassed(false);
+    setViewDetails(false);
+    setSelectedFailedTest(null);
     
     // Reset test results
-    setTestResults(prev => prev.map(test => ({ ...test, status: 'pending' })));
+    setTestResults(prev => prev.map(test => ({ ...test, status: 'pending', message: undefined })));
     
     // Simulate the testing process
     let currentTest = 0;
@@ -67,6 +71,41 @@ const VirtualPhoneTester: React.FC<VirtualPhoneTesterProps> = ({
           toast.success(`${appName} passed all tests on ${appType} ${deviceType}`);
         } else {
           toast.error(`${appName} failed some tests on ${appType} ${deviceType}`);
+          
+          // Set detailed error messages for failed tests
+          setTestResults(prev => {
+            return prev.map(test => {
+              if (test.status === 'failed') {
+                let detailedMessage = '';
+                
+                switch (test.name) {
+                  case 'App Installation':
+                    detailedMessage = `Installation failed due to ${appType === 'APK' ? 'invalid APK signature' : 'compatibility issues with the device OS'}.`;
+                    break;
+                  case 'App Launch':
+                    detailedMessage = 'App crashed on startup. There may be initialization errors.';
+                    break;
+                  case 'UI Rendering':
+                    detailedMessage = 'Some UI elements failed to render correctly on the target device.';
+                    break;
+                  case 'Network Connectivity':
+                    detailedMessage = 'The app failed to establish secure network connections.';
+                    break;
+                  case 'Permissions':
+                    detailedMessage = 'Required permissions were not granted or incorrectly implemented.';
+                    break;
+                  case 'Performance':
+                    detailedMessage = 'App performance did not meet the required threshold for smooth operation.';
+                    break;
+                  default:
+                    detailedMessage = 'Test failed for unknown reasons.';
+                }
+                
+                return { ...test, message: detailedMessage };
+              }
+              return test;
+            });
+          });
         }
         return;
       }
@@ -121,7 +160,16 @@ const VirtualPhoneTester: React.FC<VirtualPhoneTesterProps> = ({
     setIsRunning(false);
     setAllPassed(false);
     setIsReset(true);
+    setViewDetails(false);
+    setSelectedFailedTest(null);
     toast.info('Virtual device tests reset');
+  };
+  
+  const showTestDetails = (test: TestResult) => {
+    if (test.status === 'failed') {
+      setSelectedFailedTest(test);
+      setViewDetails(true);
+    }
   };
 
   return (
@@ -180,15 +228,20 @@ const VirtualPhoneTester: React.FC<VirtualPhoneTesterProps> = ({
           </div>
           
           <Tabs defaultValue="tests">
-            <TabsList className="grid grid-cols-2">
+            <TabsList className="grid grid-cols-3">
               <TabsTrigger value="tests">Tests</TabsTrigger>
               <TabsTrigger value="preview">Device Preview</TabsTrigger>
+              <TabsTrigger value="details" disabled={!selectedFailedTest}>Error Details</TabsTrigger>
             </TabsList>
             
             <TabsContent value="tests" className="space-y-4">
               <div className="space-y-2 my-2">
                 {testResults.map((test, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 border rounded">
+                  <div 
+                    key={index} 
+                    className={`flex items-center justify-between p-2 border rounded ${test.status === 'failed' ? 'cursor-pointer hover:bg-red-50' : ''}`}
+                    onClick={() => test.status === 'failed' ? showTestDetails(test) : null}
+                  >
                     <div className="flex items-center gap-2">
                       {test.status === 'pending' && (
                         <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
@@ -217,6 +270,9 @@ const VirtualPhoneTester: React.FC<VirtualPhoneTesterProps> = ({
                       }
                     >
                       {test.status}
+                      {test.status === 'failed' && (
+                        <span className="ml-1">- Click for details</span>
+                      )}
                     </Badge>
                   </div>
                 ))}
@@ -275,6 +331,83 @@ const VirtualPhoneTester: React.FC<VirtualPhoneTesterProps> = ({
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+            
+            <TabsContent value="details">
+              {selectedFailedTest && (
+                <Card>
+                  <CardContent className="p-4 space-y-4">
+                    <div className="flex items-start gap-3 pb-3 border-b">
+                      <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+                      <div>
+                        <h4 className="font-medium">{selectedFailedTest.name} - Test Failed</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedFailedTest.message}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h5 className="text-sm font-medium mb-2">Detailed Error Information</h5>
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-md p-3 text-sm">
+                        {selectedFailedTest.name === 'App Installation' && (
+                          <div className="space-y-2">
+                            <p>Installation failed with error code: <span className="font-mono">INSTALL_PARSE_FAILED_NO_CERTIFICATES</span></p>
+                            <p>Reason: The APK file signature is invalid or missing required certificates.</p>
+                            <p>Solution: Rebuild the APK with proper signing configuration.</p>
+                          </div>
+                        )}
+                        {selectedFailedTest.name === 'App Launch' && (
+                          <div className="space-y-2">
+                            <p>Launch failed with error: <span className="font-mono">FATAL EXCEPTION: main</span></p>
+                            <p>Reason: Uncaught exception in application startup code.</p>
+                            <p>Solution: Review initialization code and error handling.</p>
+                          </div>
+                        )}
+                        {selectedFailedTest.name === 'UI Rendering' && (
+                          <div className="space-y-2">
+                            <p>UI error: <span className="font-mono">LayoutInflationException</span></p>
+                            <p>Reason: Some layouts aren't compatible with the test device dimensions.</p>
+                            <p>Solution: Test on various screen sizes and implement responsive layouts.</p>
+                          </div>
+                        )}
+                        {selectedFailedTest.name === 'Network Connectivity' && (
+                          <div className="space-y-2">
+                            <p>Network error: <span className="font-mono">SSL_HANDSHAKE_FAILURE</span></p>
+                            <p>Reason: Failed to establish secure connection with API endpoints.</p>
+                            <p>Solution: Verify SSL configuration and certificate validity.</p>
+                          </div>
+                        )}
+                        {selectedFailedTest.name === 'Permissions' && (
+                          <div className="space-y-2">
+                            <p>Permission error: <span className="font-mono">PERMISSION_DENIED</span></p>
+                            <p>Reason: Required permissions not properly requested or denied by user.</p>
+                            <p>Solution: Implement proper permission request flow with clear explanations.</p>
+                          </div>
+                        )}
+                        {selectedFailedTest.name === 'Performance' && (
+                          <div className="space-y-2">
+                            <p>Performance issue: <span className="font-mono">ANR (Application Not Responding)</span></p>
+                            <p>Reason: UI thread blocked for over 5 seconds during heavy operations.</p>
+                            <p>Solution: Move intensive operations to background threads.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={() => {
+                        setViewDetails(false);
+                        setSelectedFailedTest(null);
+                      }}
+                    >
+                      Back to Test Results
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>

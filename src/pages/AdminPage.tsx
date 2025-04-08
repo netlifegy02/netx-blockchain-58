@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Token } from '@/lib/blockchain-types';
@@ -15,6 +16,8 @@ import Cashout from '@/components/blockchain/Cashout';
 import GoogleDriveBackup from '@/components/blockchain/GoogleDriveBackup';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, 
   Database, 
@@ -30,7 +33,8 @@ import {
 import { 
   isAccountFullySetup, 
   markAccountAsSetup, 
-  getSetupCompletionStatus 
+  getSetupCompletionStatus, 
+  isAuthenticated
 } from '@/utils/authUtils';
 import VirtualPhoneTester from '@/components/mobile/VirtualPhoneTester';
 import { Progress } from '@/components/ui/progress';
@@ -47,14 +51,18 @@ const AdminPage = () => {
   } | null>(null);
   const [setupStatus, setSetupStatus] = useState<any>(null);
   const [setupProgress, setSetupProgress] = useState(0);
+  const [needsRegistration, setNeedsRegistration] = useState(false);
+  const navigate = useNavigate();
   
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Check if admin account is fully set up, if not, mark it as set up
-        if (!isAccountFullySetup()) {
-          markAccountAsSetup();
+        // Check if admin is authenticated
+        if (!isAuthenticated()) {
+          setNeedsRegistration(true);
+          setIsLoading(false);
+          return;
         }
         
         // Get setup completion status
@@ -67,6 +75,11 @@ const AdminPage = () => {
           const completedTasks = tasks.filter(task => task === true).length;
           const progress = Math.round((completedTasks / tasks.length) * 100);
           setSetupProgress(progress);
+          
+          // If all setup tasks are complete, mark the account as fully set up
+          if (progress === 100 && !isAccountFullySetup()) {
+            markAccountAsSetup();
+          }
         }
         
         // Simulate API call delay
@@ -87,6 +100,13 @@ const AdminPage = () => {
   // Check setup status periodically
   useEffect(() => {
     const checkSetupStatus = () => {
+      if (!isAuthenticated()) {
+        setNeedsRegistration(true);
+        return;
+      } else {
+        setNeedsRegistration(false);
+      }
+      
       const status = getSetupCompletionStatus();
       setSetupStatus(status);
       
@@ -96,11 +116,17 @@ const AdminPage = () => {
         const completedTasks = tasks.filter(task => task === true).length;
         const progress = Math.round((completedTasks / tasks.length) * 100);
         setSetupProgress(progress);
+        
+        // If all setup tasks are complete, mark the account as fully set up
+        if (progress === 100 && !isAccountFullySetup()) {
+          markAccountAsSetup();
+        }
       }
     };
     
     // Check every minute
     const interval = setInterval(checkSetupStatus, 60000);
+    checkSetupStatus(); // Also check immediately
     
     return () => clearInterval(interval);
   }, []);
@@ -150,6 +176,35 @@ const AdminPage = () => {
       // In a real application, you would update the app status in the database
     }
   };
+
+  const handleCompleteProfile = () => {
+    navigate('/register');
+  };
+  
+  if (needsRegistration) {
+    return (
+      <Layout>
+        <div className="container py-6">
+          <div className="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden md:max-w-2xl p-6 space-y-6">
+            <div className="flex flex-col items-center text-center space-y-2">
+              <AlertCircle className="h-12 w-12 text-amber-500" />
+              <h2 className="text-2xl font-bold">Complete Your Profile</h2>
+              <p className="text-muted-foreground">
+                You need to register or log in to access the admin dashboard features.
+              </p>
+            </div>
+            
+            <Button 
+              onClick={handleCompleteProfile}
+              className="w-full bg-primary hover:bg-primary/90"
+            >
+              Register Now
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
   
   return (
     <Layout>
