@@ -33,13 +33,16 @@ import {
   DollarSign,
   MinusCircle,
   Upload,
-  Image
+  HelpCircle,
+  ShieldCheck,
+  Info
 } from 'lucide-react';
 import { formatNumber } from '@/lib/blockchain-utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { fileToBase64 } from '@/utils/authUtils';
+import { fileToBase64, isAdmin, getUserInfo } from '@/utils/authUtils';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface UserAccount {
   id: string;
@@ -54,6 +57,7 @@ interface UserAccount {
   registeredAt: string;
   verificationStatus: 'verified' | 'unverified';
   avatar?: string;
+  isAdmin?: boolean;
 }
 
 const AdminUsers: React.FC = () => {
@@ -66,6 +70,7 @@ const AdminUsers: React.FC = () => {
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [isFundsDialogOpen, setIsFundsDialogOpen] = useState(false);
   const [fundAmount, setFundAmount] = useState('');
+  const [showHelpDialog, setShowHelpDialog] = useState(false);
   const [newUser, setNewUser] = useState({
     name: '',
     username: '',
@@ -82,39 +87,57 @@ const AdminUsers: React.FC = () => {
     const loadUsers = async () => {
       setIsLoading(true);
       try {
-        // Attempt to load users from localStorage first
-        const savedUsers = localStorage.getItem('adminUsers');
-        let mockUsers: UserAccount[] = [];
+        // Get current admin user
+        const currentAdmin = getUserInfo();
         
-        if (savedUsers) {
-          mockUsers = JSON.parse(savedUsers);
-        } else {
-          // Generate mock user data if not found in localStorage
-          mockUsers = Array.from({ length: 12 }, (_, i) => ({
-            id: `user-${i + 100}`,
-            name: `User ${['John', 'Mary', 'David', 'Sarah', 'Michael', 'Jennifer', 'Robert', 'Lisa', 'Thomas', 'Emily'][i % 10]} ${String.fromCharCode(65 + i % 26)}`,
-            username: `user${i + 100}`,
-            email: `user${i + 100}@example.com`,
-            phone: `+1 ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-            tokens: Math.floor(Math.random() * 5),
-            balance: Math.floor(Math.random() * 1000),
-            nodes: Math.floor(Math.random() * 3),
-            status: ['active', 'active', 'active', 'inactive', 'pending'][Math.floor(Math.random() * 5)] as 'active' | 'inactive' | 'pending',
-            registeredAt: new Date(Date.now() - Math.floor(Math.random() * 90 * 24 * 60 * 60 * 1000)).toISOString(),
-            verificationStatus: Math.random() > 0.3 ? 'verified' : 'unverified',
-            avatar: Math.random() > 0.7 ? `/avatars/avatar-${i % 5 + 1}.png` : undefined
-          }));
-          
-          // Save to localStorage
-          localStorage.setItem('adminUsers', JSON.stringify(mockUsers));
+        // Load registered users from localStorage
+        const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+        
+        // Convert registered users to UserAccount format
+        const realUserAccounts: UserAccount[] = registeredUsers.map((user: any, index: number) => ({
+          id: `user-${index + 100}`,
+          name: user.name || user.username,
+          username: user.username,
+          email: user.email || `${user.username}@example.com`,
+          phone: user.phone || '',
+          tokens: Math.floor(Math.random() * 5),
+          balance: Math.floor(Math.random() * 1000),
+          nodes: Math.floor(Math.random() * 3),
+          status: user.status || 'active',
+          registeredAt: user.registeredAt || new Date(Date.now() - Math.floor(Math.random() * 90 * 24 * 60 * 60 * 1000)).toISOString(),
+          verificationStatus: 'verified',
+          avatar: user.avatar || undefined,
+          isAdmin: user.role === 'admin' || user.isAdmin
+        }));
+        
+        // If no real users yet, create the admin user based on current user
+        if (realUserAccounts.length === 0 && currentAdmin) {
+          realUserAccounts.push({
+            id: 'admin-user-1',
+            name: currentAdmin.name || 'Admin User',
+            username: currentAdmin.username || 'admin',
+            email: currentAdmin.email || 'admin@example.com',
+            phone: currentAdmin.phone || '',
+            tokens: 10,
+            balance: 5000,
+            nodes: 5,
+            status: 'active',
+            registeredAt: new Date().toISOString(),
+            verificationStatus: 'verified',
+            avatar: currentAdmin.profileImage,
+            isAdmin: true
+          });
         }
         
-        setUsers(mockUsers);
+        setUsers(realUserAccounts);
         
         // Calculate total nodes
-        const totalNodes = mockUsers.reduce((acc, user) => acc + user.nodes, 0);
+        const totalNodes = realUserAccounts.reduce((acc, user) => acc + user.nodes, 0);
         const activeNodes = Math.floor(totalNodes * 0.85); // Assume 85% of nodes are active
         setNodeCount({ total: totalNodes, active: activeNodes });
+        
+        // Save the real users to adminUsers
+        localStorage.setItem('adminUsers', JSON.stringify(realUserAccounts));
         
       } catch (error) {
         console.error('Error loading users:', error);
@@ -169,7 +192,22 @@ const AdminUsers: React.FC = () => {
   };
   
   const handleDeleteUser = (userId: string) => {
+    // Don't allow deleting admin users
+    if (users.find(user => user.id === userId)?.isAdmin) {
+      toast.error('Cannot delete admin users');
+      return;
+    }
+    
     setUsers(users.filter(user => user.id !== userId));
+    
+    // Also remove from registered users
+    const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    const user = users.find(u => u.id === userId);
+    if (user && user.username) {
+      const updatedRegisteredUsers = registeredUsers.filter((u: any) => u.username !== user.username);
+      localStorage.setItem('registeredUsers', JSON.stringify(updatedRegisteredUsers));
+    }
+    
     toast.success('User has been deleted');
   };
   
@@ -219,7 +257,8 @@ const AdminUsers: React.FC = () => {
       status: 'active',
       registeredAt: new Date().toISOString(),
       verificationStatus: 'unverified',
-      avatar: newUser.avatar || undefined
+      avatar: newUser.avatar || undefined,
+      isAdmin: false
     };
     
     setUsers([userToAdd, ...users]);
@@ -248,6 +287,24 @@ const AdminUsers: React.FC = () => {
     
     setIsAddUserOpen(false);
     toast.success('New user added successfully');
+    
+    // Update security config to mark users setup as complete
+    let securityConfig = {};
+    try {
+      const existingConfig = localStorage.getItem('securityConfig');
+      if (existingConfig) {
+        securityConfig = JSON.parse(existingConfig);
+      }
+      
+      securityConfig = {
+        ...securityConfig,
+        usersSetupComplete: true
+      };
+      
+      localStorage.setItem('securityConfig', JSON.stringify(securityConfig));
+    } catch (err) {
+      console.error('Error updating security config:', err);
+    }
   };
   
   const handleEditUser = () => {
@@ -266,6 +323,22 @@ const AdminUsers: React.FC = () => {
     setUsers(users.map(user => 
       user.id === selectedUser.id ? selectedUser : user
     ));
+    
+    // Also update in registered users
+    const registeredUsers = JSON.parse(localStorage.getItem('registeredUsers') || '[]');
+    const updatedRegisteredUsers = registeredUsers.map((user: any) => {
+      if (user.username === selectedUser.username) {
+        return {
+          ...user,
+          name: selectedUser.name,
+          email: selectedUser.email,
+          phone: selectedUser.phone,
+          avatar: selectedUser.avatar
+        };
+      }
+      return user;
+    });
+    localStorage.setItem('registeredUsers', JSON.stringify(updatedRegisteredUsers));
     
     setIsEditUserOpen(false);
     toast.success('User information updated');
@@ -318,6 +391,21 @@ const AdminUsers: React.FC = () => {
   
   return (
     <div className="space-y-6">
+      <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+        <AlertTitle>User Management Setup</AlertTitle>
+        <AlertDescription>
+          Complete your admin account setup and add additional users to your system.
+          <Button 
+            variant="link" 
+            onClick={() => setShowHelpDialog(true)} 
+            className="px-0 text-blue-600 dark:text-blue-400"
+          >
+            Learn how to configure users
+          </Button>
+        </AlertDescription>
+      </Alert>
+      
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -346,7 +434,7 @@ const AdminUsers: React.FC = () => {
               {formatNumber(users.filter(u => u.verificationStatus === 'verified').length)}
             </div>
             <div className="text-sm text-muted-foreground">
-              {((users.filter(u => u.verificationStatus === 'verified').length / users.length) * 100).toFixed(1)}% of all users
+              {users.length > 0 ? ((users.filter(u => u.verificationStatus === 'verified').length / users.length) * 100).toFixed(1) : '0'}% of all users
             </div>
           </CardContent>
         </Card>
@@ -504,6 +592,23 @@ const AdminUsers: React.FC = () => {
                 <div className="h-20 bg-muted rounded-md w-full"></div>
               </div>
             </div>
+          ) : filteredUsers.length === 0 ? (
+            <div className="py-8 text-center">
+              <div className="mx-auto bg-muted/50 rounded-full w-12 h-12 flex items-center justify-center mb-3">
+                <UsersIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <h3 className="text-lg font-medium">No Users Found</h3>
+              <p className="text-sm text-muted-foreground mt-1 mb-4">
+                Add your first user to get started with user management
+              </p>
+              <Button 
+                onClick={() => setIsAddUserOpen(true)}
+                className="gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Add User
+              </Button>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -517,227 +622,240 @@ const AdminUsers: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredUsers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No users found matching your search criteria
+                {filteredUsers.map(user => (
+                  <TableRow key={user.id} className={user.isAdmin ? "bg-primary/5" : ""}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={user.avatar} />
+                          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium flex items-center gap-1">
+                            {user.name}
+                            {user.isAdmin && (
+                              <Badge variant="secondary" className="ml-1">
+                                <ShieldCheck className="h-3 w-3 mr-1" />
+                                Admin
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {user.username ? `@${user.username} · ` : ''}{user.email}
+                          </div>
+                        </div>
+                      </div>
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredUsers.map(user => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={user.avatar} />
-                            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-medium">{user.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {user.username ? `@${user.username} · ` : ''}{user.email}
+                    <TableCell>{user.phone}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline"
+                        className={
+                          user.status === 'active' 
+                            ? 'bg-green-500/20 text-green-700' 
+                            : user.status === 'inactive' 
+                            ? 'bg-red-500/20 text-red-700' 
+                            : 'bg-yellow-500/20 text-yellow-700'
+                        }
+                      >
+                        {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant="outline"
+                        className={
+                          user.verificationStatus === 'verified' 
+                            ? 'bg-blue-500/20 text-blue-700' 
+                            : 'bg-gray-500/20 text-gray-700'
+                        }
+                      >
+                        {user.verificationStatus === 'verified' ? 'Verified' : 'Unverified'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1">
+                          <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-sm font-medium">${user.balance.toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <span>{user.tokens} Tokens</span>
+                          <span className="mx-1">•</span>
+                          <span>{user.nodes} Nodes</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Dialog open={isFundsDialogOpen && selectedUser?.id === user.id}
+                               onOpenChange={(open) => {
+                                 setIsFundsDialogOpen(open);
+                                 if (open) setSelectedUser(user);
+                               }}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsFundsDialogOpen(true);
+                              }}
+                            >
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              Funds
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Manage Funds</DialogTitle>
+                              <DialogDescription>
+                                Add or remove funds from {user.name}'s account
+                              </DialogDescription>
+                            </DialogHeader>
+                            
+                            <div className="py-4">
+                              <div className="space-y-2">
+                                <Label htmlFor="fundAmount">Amount (USD)</Label>
+                                <Input 
+                                  id="fundAmount" 
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={fundAmount}
+                                  onChange={(e) => setFundAmount(e.target.value)}
+                                  placeholder="0.00"
+                                />
+                              </div>
+                              
+                              <div className="mt-4 p-3 bg-muted rounded-md">
+                                <div className="font-medium">Current Balance</div>
+                                <div className="text-2xl font-bold">${user.balance.toFixed(2)}</div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{user.phone}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline"
-                          className={
-                            user.status === 'active' 
-                              ? 'bg-green-500/20 text-green-700' 
-                              : user.status === 'inactive' 
-                              ? 'bg-red-500/20 text-red-700' 
-                              : 'bg-yellow-500/20 text-yellow-700'
-                          }
-                        >
-                          {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant="outline"
-                          className={
-                            user.verificationStatus === 'verified' 
-                              ? 'bg-blue-500/20 text-blue-700' 
-                              : 'bg-gray-500/20 text-gray-700'
-                          }
-                        >
-                          {user.verificationStatus === 'verified' ? 'Verified' : 'Unverified'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-sm font-medium">${user.balance.toFixed(2)}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <span>{user.tokens} Tokens</span>
-                            <span className="mx-1">•</span>
-                            <span>{user.nodes} Nodes</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => setSelectedUser(user)}
-                              >
-                                <DollarSign className="h-4 w-4 mr-1" />
-                                Funds
+                            
+                            <DialogFooter>
+                              <Button variant="outline" onClick={handleRemoveFunds}>
+                                <MinusCircle className="h-4 w-4 mr-2" />
+                                Remove Funds
                               </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Manage Funds</DialogTitle>
-                                <DialogDescription>
-                                  Add or remove funds from {user.name}'s account
-                                </DialogDescription>
-                              </DialogHeader>
-                              
-                              <div className="py-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="fundAmount">Amount (USD)</Label>
-                                  <Input 
-                                    id="fundAmount" 
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={fundAmount}
-                                    onChange={(e) => setFundAmount(e.target.value)}
-                                    placeholder="0.00"
-                                  />
+                              <Button onClick={handleAddFunds}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Add Funds
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                        
+                        <Dialog open={isEditUserOpen && selectedUser?.id === user.id} 
+                               onOpenChange={(open) => {
+                                 setIsEditUserOpen(open);
+                                 if (open) setSelectedUser(user);
+                               }}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsEditUserOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Edit User</DialogTitle>
+                              <DialogDescription>
+                                Update user details
+                              </DialogDescription>
+                            </DialogHeader>
+                            
+                            <div className="space-y-4 py-4">
+                              {/* Edit Profile Picture */}
+                              <div className="flex flex-col items-center space-y-2">
+                                <div className="relative">
+                                  <Avatar className="w-24 h-24">
+                                    <AvatarImage src={selectedUser?.avatar} />
+                                    <AvatarFallback className="text-xl">
+                                      {selectedUser?.name ? selectedUser.name.charAt(0).toUpperCase() : <User className="h-12 w-12" />}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="absolute bottom-0 right-0 rounded-full w-8 h-8 p-0"
+                                    onClick={() => editFileInputRef.current?.click()}
+                                  >
+                                    <Upload className="h-4 w-4" />
+                                    <span className="sr-only">Upload</span>
+                                  </Button>
                                 </div>
-                                
-                                <div className="mt-4 p-3 bg-muted rounded-md">
-                                  <div className="font-medium">Current Balance</div>
-                                  <div className="text-2xl font-bold">${user.balance.toFixed(2)}</div>
-                                </div>
+                                <input
+                                  ref={editFileInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleFileChange(e, true)}
+                                  className="hidden"
+                                />
+                                <span className="text-sm text-muted-foreground">Click to change profile picture</span>
                               </div>
                               
-                              <DialogFooter>
-                                <Button variant="outline" onClick={handleRemoveFunds}>
-                                  <MinusCircle className="h-4 w-4 mr-2" />
-                                  Remove Funds
-                                </Button>
-                                <Button onClick={handleAddFunds}>
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Add Funds
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                          
-                          <Dialog open={isEditUserOpen && selectedUser?.id === user.id} 
-                                 onOpenChange={(open) => {
-                                   setIsEditUserOpen(open);
-                                   if (open) setSelectedUser(user);
-                                 }}>
-                            <DialogTrigger asChild>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedUser(user);
-                                  setIsEditUserOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-md">
-                              <DialogHeader>
-                                <DialogTitle>Edit User</DialogTitle>
-                                <DialogDescription>
-                                  Update user details
-                                </DialogDescription>
-                              </DialogHeader>
-                              
-                              <div className="space-y-4 py-4">
-                                {/* Edit Profile Picture */}
-                                <div className="flex flex-col items-center space-y-2">
-                                  <div className="relative">
-                                    <Avatar className="w-24 h-24">
-                                      <AvatarImage src={selectedUser?.avatar} />
-                                      <AvatarFallback className="text-xl">
-                                        {selectedUser?.name ? selectedUser.name.charAt(0).toUpperCase() : <User className="h-12 w-12" />}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="absolute bottom-0 right-0 rounded-full w-8 h-8 p-0"
-                                      onClick={() => editFileInputRef.current?.click()}
-                                    >
-                                      <Upload className="h-4 w-4" />
-                                      <span className="sr-only">Upload</span>
-                                    </Button>
-                                  </div>
-                                  <input
-                                    ref={editFileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => handleFileChange(e, true)}
-                                    className="hidden"
-                                  />
-                                  <span className="text-sm text-muted-foreground">Click to change profile picture</span>
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-name">Full Name</Label>
-                                  <Input 
-                                    id="edit-name" 
-                                    value={selectedUser?.name}
-                                    onChange={(e) => setSelectedUser(prev => 
-                                      prev ? {...prev, name: e.target.value} : null
-                                    )}
-                                  />
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-username">Username</Label>
-                                  <Input 
-                                    id="edit-username" 
-                                    value={selectedUser?.username || ''}
-                                    onChange={(e) => setSelectedUser(prev => 
-                                      prev ? {...prev, username: e.target.value} : null
-                                    )}
-                                  />
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-email">Email</Label>
-                                  <Input 
-                                    id="edit-email" 
-                                    type="email"
-                                    value={selectedUser?.email}
-                                    onChange={(e) => setSelectedUser(prev => 
-                                      prev ? {...prev, email: e.target.value} : null
-                                    )}
-                                  />
-                                </div>
-                                
-                                <div className="space-y-2">
-                                  <Label htmlFor="edit-phone">Phone Number</Label>
-                                  <Input 
-                                    id="edit-phone" 
-                                    value={selectedUser?.phone}
-                                    onChange={(e) => setSelectedUser(prev => 
-                                      prev ? {...prev, phone: e.target.value} : null
-                                    )}
-                                  />
-                                </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-name">Full Name</Label>
+                                <Input 
+                                  id="edit-name" 
+                                  value={selectedUser?.name}
+                                  onChange={(e) => setSelectedUser(prev => 
+                                    prev ? {...prev, name: e.target.value} : null
+                                  )}
+                                />
                               </div>
                               
-                              <DialogFooter>
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-username">Username</Label>
+                                <Input 
+                                  id="edit-username" 
+                                  value={selectedUser?.username || ''}
+                                  onChange={(e) => setSelectedUser(prev => 
+                                    prev ? {...prev, username: e.target.value} : null
+                                  )}
+                                  disabled={selectedUser?.isAdmin}
+                                />
+                                {selectedUser?.isAdmin && (
+                                  <p className="text-xs text-muted-foreground">Admin username cannot be changed</p>
+                                )}
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-email">Email</Label>
+                                <Input 
+                                  id="edit-email" 
+                                  type="email"
+                                  value={selectedUser?.email}
+                                  onChange={(e) => setSelectedUser(prev => 
+                                    prev ? {...prev, email: e.target.value} : null
+                                  )}
+                                />
+                              </div>
+                              
+                              <div className="space-y-2">
+                                <Label htmlFor="edit-phone">Phone Number</Label>
+                                <Input 
+                                  id="edit-phone" 
+                                  value={selectedUser?.phone}
+                                  onChange={(e) => setSelectedUser(prev => 
+                                    prev ? {...prev, phone: e.target.value} : null
+                                  )}
+                                />
+                              </div>
+                            </div>
+                            
+                            <DialogFooter>
+                              {!selectedUser?.isAdmin && (
                                 <Button 
                                   variant="destructive" 
                                   onClick={() => {
@@ -751,53 +869,99 @@ const AdminUsers: React.FC = () => {
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Delete User
                                 </Button>
-                                <Button onClick={handleEditUser}>Save Changes</Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                          
-                          {user.verificationStatus === 'unverified' && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleVerifyUser(user.id)}
-                            >
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Verify
-                            </Button>
-                          )}
-                          
-                          {user.status === 'active' ? (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="text-red-600 hover:text-red-700"
-                              onClick={() => handleDeactivateUser(user.id)}
-                            >
-                              <UserX className="h-4 w-4 mr-1" />
-                              Deactivate
-                            </Button>
-                          ) : (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="text-green-600 hover:text-green-700"
-                              onClick={() => handleActivateUser(user.id)}
-                            >
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Activate
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                              )}
+                              <Button onClick={handleEditUser}>Save Changes</Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                        
+                        {user.verificationStatus === 'unverified' && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleVerifyUser(user.id)}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Verify
+                          </Button>
+                        )}
+                        
+                        {!user.isAdmin && (user.status === 'active' ? (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="text-red-600 hover:text-red-700"
+                            onClick={() => handleDeactivateUser(user.id)}
+                          >
+                            <UserX className="h-4 w-4 mr-1" />
+                            Deactivate
+                          </Button>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            className="text-green-600 hover:text-green-700"
+                            onClick={() => handleActivateUser(user.id)}
+                          >
+                            <UserCheck className="h-4 w-4 mr-1" />
+                            Activate
+                          </Button>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
+      
+      {/* Help Dialog */}
+      <Dialog open={showHelpDialog} onOpenChange={setShowHelpDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>User Management Guide</DialogTitle>
+            <DialogDescription>
+              How to configure and manage user accounts in your system
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <h3 className="font-medium">Admin Account Setup</h3>
+              <p className="text-sm text-muted-foreground">
+                Your admin account is created automatically when you register. Complete your profile by adding your full name, email, and profile picture in the Edit dialog.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="font-medium">Adding Users</h3>
+              <p className="text-sm text-muted-foreground">
+                Click the "Add User" button to create new user accounts. All fields with an asterisk (*) are required. Once added, users can log in with their username and password.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="font-medium">Managing User Permissions</h3>
+              <p className="text-sm text-muted-foreground">
+                Currently, there are two user roles: Admin and Regular User. Admins have full access to all system features, while regular users have limited access based on their verification status.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="font-medium">Verification Process</h3>
+              <p className="text-sm text-muted-foreground">
+                New users start with "Unverified" status. Click the "Verify" button to approve their account. Only verified users can perform sensitive operations in the system.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button onClick={() => setShowHelpDialog(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

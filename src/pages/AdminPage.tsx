@@ -34,7 +34,9 @@ import {
   isAccountFullySetup, 
   markAccountAsSetup, 
   getSetupCompletionStatus, 
-  isAuthenticated
+  isAuthenticated,
+  getUserInfo,
+  updateUserInfo
 } from '@/utils/authUtils';
 import VirtualPhoneTester from '@/components/mobile/VirtualPhoneTester';
 import { Progress } from '@/components/ui/progress';
@@ -65,6 +67,18 @@ const AdminPage = () => {
           return;
         }
         
+        // Get current user info
+        const currentUser = getUserInfo();
+        if (currentUser) {
+          // If the user has no isAdmin flag, add it
+          if (!currentUser.isAdmin && !currentUser.role) {
+            updateUserInfo({
+              isAdmin: true,
+              role: 'admin'
+            });
+          }
+        }
+        
         // Get setup completion status
         const status = getSetupCompletionStatus();
         setSetupStatus(status);
@@ -83,7 +97,7 @@ const AdminPage = () => {
         }
         
         // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 500));
         
         const mockTokens = generateMockTokens();
         setTokens(mockTokens);
@@ -125,7 +139,7 @@ const AdminPage = () => {
     };
     
     // Check every minute
-    const interval = setInterval(checkSetupStatus, 60000);
+    const interval = setInterval(checkSetupStatus, 30000);
     checkSetupStatus(); // Also check immediately
     
     return () => clearInterval(interval);
