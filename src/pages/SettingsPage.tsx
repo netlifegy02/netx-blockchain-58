@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
+import WalletImportInstructions from '@/components/wallet/WalletImportInstructions';
 import {
   User,
   Wallet,
@@ -57,6 +58,9 @@ const SettingsPage = () => {
   const [nodes, setNodes] = useState<NodeData[]>([]);
   const [verificationCode, setVerificationCode] = useState('');
   const [userProfile, setUserProfile] = useState<any>(null);
+  
+  // For wallet import instructions
+  const [currentWalletDialog, setCurrentWalletDialog] = useState<string | null>(null);
   
   useEffect(() => {
     // Simulate loading wallet data
@@ -195,6 +199,10 @@ const SettingsPage = () => {
     
     setNodes([...nodes, newNode]);
     toast.success(`New node ${newNodeId} created and syncing`);
+  };
+
+  const openWalletInstructions = (walletName: string) => {
+    setCurrentWalletDialog(walletName);
   };
   
   return (
@@ -552,7 +560,11 @@ const SettingsPage = () => {
                         <p className="text-sm text-muted-foreground mt-1">
                           Solana & Ethereum
                         </p>
-                        <Button variant="outline" className="mt-4 w-full">
+                        <Button 
+                          variant="outline" 
+                          className="mt-4 w-full"
+                          onClick={() => openWalletInstructions('Phantom Wallet')}
+                        >
                           Import Instructions
                         </Button>
                       </div>
@@ -567,7 +579,11 @@ const SettingsPage = () => {
                         <p className="text-sm text-muted-foreground mt-1">
                           Multi-chain
                         </p>
-                        <Button variant="outline" className="mt-4 w-full">
+                        <Button 
+                          variant="outline" 
+                          className="mt-4 w-full"
+                          onClick={() => openWalletInstructions('Trust Wallet')}
+                        >
                           Import Instructions
                         </Button>
                       </div>
@@ -582,7 +598,11 @@ const SettingsPage = () => {
                         <p className="text-sm text-muted-foreground mt-1">
                           Ethereum & EVM
                         </p>
-                        <Button variant="outline" className="mt-4 w-full">
+                        <Button 
+                          variant="outline" 
+                          className="mt-4 w-full"
+                          onClick={() => openWalletInstructions('MetaMask')}
+                        >
                           Import Instructions
                         </Button>
                       </div>
@@ -590,6 +610,16 @@ const SettingsPage = () => {
                   </CardContent>
                 </Card>
               </div>
+              
+              {/* Wallet Import Instructions Dialog */}
+              {currentWalletDialog && wallet && (
+                <WalletImportInstructions
+                  walletName={currentWalletDialog}
+                  open={!!currentWalletDialog}
+                  onOpenChange={() => setCurrentWalletDialog(null)}
+                  recoveryPhrase={wallet.mnemonic}
+                />
+              )}
             </TabsContent>
             
             <TabsContent value="nodes">

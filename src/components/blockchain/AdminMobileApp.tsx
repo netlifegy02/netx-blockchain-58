@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Card,
@@ -10,259 +11,159 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  Download,
   Smartphone,
-  Tablet,
+  QrCode,
+  Download,
+  ArrowUpDown,
   RefreshCw,
-  Share2,
-  FileCode,
-  Shield,
-  HardDrive,
-  Github
+  Edit,
+  Play,
+  MoreHorizontal,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Clock
 } from 'lucide-react';
-import LinuxSetupGuide from './LinuxSetupGuide';
 
-// Create a more installable APK file with proper DEX format and signatures
-const createInstallableAPK = (version: string, sizeMB: number): ArrayBuffer => {
-  // Create a buffer of the specified size
-  const buffer = new ArrayBuffer(sizeMB * 1024 * 1024);
-  const view = new Uint8Array(buffer);
-  
-  // APK is a ZIP file format with specific contents
-  // ZIP file signature (PK\x03\x04)
-  const zipSignature = [0x50, 0x4B, 0x03, 0x04];
-  for (let i = 0; i < zipSignature.length; i++) {
-    view[i] = zipSignature[i];
-  }
-  
-  // Add a mock DEX header (DEX format signature)
-  // "dex\n035\0" signature at an offset
-  const dexOffset = 4096; // Some offset in the file
-  const dexSignature = [0x64, 0x65, 0x78, 0x0A, 0x30, 0x33, 0x35, 0x00];
-  for (let i = 0; i < dexSignature.length; i++) {
-    if (dexOffset + i < view.length) {
-      view[dexOffset + i] = dexSignature[i];
-    }
-  }
-  
-  // Add AndroidManifest.xml content (simplified XML format)
-  const manifestStart = 1024;
-  const manifestContent = `<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="app.lovable.mintopia"
-    android:versionCode="${version.replace(/\./g, '')}"
-    android:versionName="${version}">
-    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="33" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <application 
-        android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="Mintopia"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/AppTheme">
-        <activity 
-            android:name=".MainActivity"
-            android:exported="true"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>`;
-  
-  // Convert manifest string to UTF-8 bytes and write to buffer
-  const encoder = new TextEncoder();
-  const manifestBytes = encoder.encode(manifestContent);
-  for (let i = 0; i < manifestBytes.length; i++) {
-    if (manifestStart + i < view.length) {
-      view[manifestStart + i] = manifestBytes[i];
-    }
-  }
-  
-  // Add a mock classes.dex file (with DEX magic number)
-  const classesStart = 8192;
-  const classesDexHeader = [
-    0x64, 0x65, 0x78, 0x0A, // "dex\n"
-    0x30, 0x33, 0x35, 0x00, // "035\0"
-    // Checksum - 4 bytes
-    0x78, 0x56, 0x34, 0x12,
-    // Signature - 20 bytes (SHA-1)
-    0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
-    0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x01, 0x23, 0x45, 0x67
-  ];
-  
-  for (let i = 0; i < classesDexHeader.length; i++) {
-    if (classesStart + i < view.length) {
-      view[classesStart + i] = classesDexHeader[i];
-    }
-  }
-  
-  // Add META-INF directory entry (essential for APK validation)
-  const metaInfOffset = 16384;
-  const metaInfSignature = [
-    0x50, 0x4B, 0x03, 0x04, // ZIP entry signature
-    0x0A, 0x00, 0x00, 0x00, // Version and flags
-    0x00, 0x00, 0x00, 0x00, // Compression method
-    0x00, 0x00, 0x00, 0x00, // Timestamp
-    0x00, 0x00, 0x00, 0x00, // CRC-32
-    0x00, 0x00, 0x00, 0x00, // Compressed size
-    0x00, 0x00, 0x00, 0x00  // Uncompressed size
-  ];
-  
-  // META-INF directory name
-  const metaInfName = "META-INF/";
-  const metaInfNameBytes = encoder.encode(metaInfName);
-  
-  for (let i = 0; i < metaInfSignature.length; i++) {
-    if (metaInfOffset + i < view.length) {
-      view[metaInfOffset + i] = metaInfSignature[i];
-    }
-  }
-  
-  // Write the META-INF directory name after the header
-  for (let i = 0; i < metaInfNameBytes.length; i++) {
-    if (metaInfOffset + metaInfSignature.length + i < view.length) {
-      view[metaInfOffset + metaInfSignature.length + i] = metaInfNameBytes[i];
-    }
-  }
-  
-  // Fill the rest with random data to simulate actual code, resources, etc.
-  for (let i = metaInfOffset + metaInfSignature.length + metaInfNameBytes.length; i < view.length; i++) {
-    view[i] = Math.floor(Math.random() * 256);
-  }
-  
-  return buffer;
-};
+interface AppData {
+  id: string;
+  name: string;
+  version: string;
+  platform: 'iOS' | 'Android' | 'Both';
+  status: 'published' | 'pending' | 'rejected' | 'testing';
+  lastUpdated: string;
+  size: string;
+  downloads: number;
+  rating: number;
+}
 
-const AdminMobileApp: React.FC = () => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [showLinuxGuide, setShowLinuxGuide] = useState(false);
-  
-  const androidReleases = [
+interface AdminMobileAppProps {
+  onTestApp?: (appType: 'iOS' | 'Android' | 'APK', appVersion: string, appName: string) => void;
+}
+
+const AdminMobileApp: React.FC<AdminMobileAppProps> = ({ onTestApp }) => {
+  const [apps, setApps] = useState<AppData[]>([
     {
-      version: '1.2.5',
-      date: '2025-04-06',
-      size: '24.5 MB',
-      isLatest: true,
-      sizeInMB: 24.5
-    },
-    {
+      id: 'app-001',
+      name: 'Mintopia Wallet',
       version: '1.2.0',
-      date: '2025-03-20',
-      size: '23.8 MB',
-      isLatest: false,
-      sizeInMB: 23.8
+      platform: 'Both',
+      status: 'published',
+      lastUpdated: '2025-04-06',
+      size: '35.2 MB',
+      downloads: 2456,
+      rating: 4.8
     },
     {
-      version: '1.1.0',
-      date: '2025-02-15',
-      size: '22.1 MB',
-      isLatest: false,
-      sizeInMB: 22.1
+      id: 'app-002',
+      name: 'Mintopia Miner',
+      version: '1.1.5',
+      platform: 'Android',
+      status: 'published',
+      lastUpdated: '2025-04-01',
+      size: '28.7 MB',
+      downloads: 1823,
+      rating: 4.5
+    },
+    {
+      id: 'app-003',
+      name: 'Mintopia Exchange',
+      version: '1.0.2',
+      platform: 'iOS',
+      status: 'pending',
+      lastUpdated: '2025-04-07',
+      size: '42.1 MB',
+      downloads: 0,
+      rating: 0
+    },
+    {
+      id: 'app-004',
+      name: 'Mintopia Node',
+      version: '1.3.0',
+      platform: 'Android',
+      status: 'testing',
+      lastUpdated: '2025-04-08',
+      size: '31.5 MB',
+      downloads: 0,
+      rating: 0
     }
-  ];
+  ]);
   
-  const iosReleases = [
-    {
-      version: '1.2.5',
-      date: '2025-04-06',
-      size: '30.2 MB',
-      isLatest: true,
-      sizeInMB: 30.2
-    },
-    {
-      version: '1.2.0',
-      date: '2025-03-20',
-      size: '29.7 MB',
-      isLatest: false,
-      sizeInMB: 29.7
-    },
-    {
-      version: '1.1.0',
-      date: '2025-02-15',
-      size: '28.3 MB',
-      isLatest: false,
-      sizeInMB: 28.3
+  const [isUploading, setIsUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'android' | 'ios'>('android');
+  const [apkVersion, setApkVersion] = useState('1.2.1');
+  
+  const handlePublishApp = (appId: string) => {
+    setApps(apps.map(app => 
+      app.id === appId ? { ...app, status: 'published' } : app
+    ));
+    toast.success(`App ${appId} published successfully`);
+  };
+  
+  const handleRejectApp = (appId: string) => {
+    setApps(apps.map(app => 
+      app.id === appId ? { ...app, status: 'rejected' } : app
+    ));
+    toast.error(`App ${appId} rejected`);
+  };
+  
+  const handleTestApp = (appId: string) => {
+    const app = apps.find(a => a.id === appId);
+    if (!app) return;
+    
+    if (onTestApp) {
+      if (app.platform === 'Both') {
+        // Let's assume we're testing Android version first
+        onTestApp('Android', app.version, app.name);
+      } else {
+        onTestApp(app.platform, app.version, app.name);
+      }
+    } else {
+      toast.info(`Testing ${app.name} v${app.version} on virtual device`);
     }
-  ];
-  
-  const handleGenerateAPK = () => {
-    setIsGenerating(true);
-    toast.info('Generating new APK build...');
-    
-    // Simulate build process
-    setTimeout(() => {
-      toast.success('APK generated successfully');
-      setIsGenerating(false);
-    }, 3000);
   };
   
-  const handleUpdateAPK = () => {
-    setIsUpdating(true);
-    toast.info('Deploying new version to app stores...');
+  const handleUploadNewVersion = () => {
+    setIsUploading(true);
+    toast.info('Uploading new app version...');
     
-    // Simulate update process
+    // Simulate upload process
     setTimeout(() => {
-      toast.success('New version deployed to app stores');
-      setIsUpdating(false);
-    }, 2500);
-  };
-  
-  const handleDownloadApk = (version: string, sizeMB: number) => {
-    toast.info(`Downloading Android APK v${version}...`);
-    
-    // Create a more installable APK file structure
-    const fileContent = createInstallableAPK(version, sizeMB);
-    
-    // Convert ArrayBuffer to Blob with appropriate MIME type
-    const blob = new Blob([fileContent], { type: 'application/vnd.android.package-archive' });
-    
-    // Create object URL for the blob
-    const url = URL.createObjectURL(blob);
-    
-    // Create temporary anchor element to trigger download
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `mintopia-v${version}.apk`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Clean up by revoking the object URL
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-      toast.success(`Android APK v${version} downloaded successfully`);
-    }, 1500);
-  };
-  
-  const handleBackupToGoogleDrive = () => {
-    toast.info('Connecting to Google Drive...');
-    
-    // This would initiate OAuth flow with Google in a real implementation
-    // Open a new window for Google Drive authentication
-    const width = 600;
-    const height = 700;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-    
-    window.open(
-      'https://accounts.google.com/o/oauth2/auth?redirect_uri=https://mintopia.io/auth/google/callback&response_type=code&client_id=mock-client-id&scope=https://www.googleapis.com/auth/drive.file',
-      'Google Drive Authorization',
-      `width=${width},height=${height},left=${left},top=${top}`
-    );
-    
-    setTimeout(() => {
-      toast.success('Recovery phrase backed up to Google Drive');
+      setIsUploading(false);
+      
+      const newApp: AppData = {
+        id: `app-00${apps.length + 1}`,
+        name: 'Mintopia Mobile',
+        version: '1.0.0',
+        platform: 'Both',
+        status: 'pending',
+        lastUpdated: new Date().toISOString().split('T')[0],
+        size: '30.5 MB',
+        downloads: 0,
+        rating: 0
+      };
+      
+      setApps([newApp, ...apps]);
+      toast.success('New app version uploaded successfully and pending review');
     }, 2000);
   };
   
-  const toggleLinuxGuide = () => {
-    setShowLinuxGuide(!showLinuxGuide);
+  const handleGenerateQRCode = (appId: string) => {
+    toast.success(`QR code generated for app ${appId}`);
+  };
+  
+  const handleDownloadAnalytics = () => {
+    toast.success('Analytics report downloaded');
+  };
+
+  const handleTestAPK = () => {
+    if (onTestApp) {
+      onTestApp('APK', apkVersion, 'Mintopia Wallet APK');
+    } else {
+      toast.info(`Testing Mintopia Wallet APK v${apkVersion} on virtual device`);
+    }
   };
   
   return (
@@ -274,243 +175,388 @@ const AdminMobileApp: React.FC = () => {
             Mobile App Management
           </CardTitle>
           <CardDescription>
-            Manage mobile applications for Android and iOS platforms
+            Manage and monitor your mobile applications
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium flex items-center gap-2">
-                  <Badge variant="outline" className="bg-green-700/20 text-green-700 h-6">
-                    Android
-                  </Badge>
-                  <span>Android App</span>
-                </h3>
-                
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateAPK}
-                    disabled={isGenerating}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        Building...
-                      </>
-                    ) : (
-                      <>
-                        <FileCode className="h-4 w-4 mr-2" />
-                        Build APK
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="border rounded-md divide-y">
-                {androidReleases.map((release) => (
-                  <div key={release.version} className="p-4 flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">Version {release.version}</h4>
-                        {release.isLatest && (
-                          <Badge variant="outline" className="bg-blue-500/20 text-blue-700">
-                            Latest
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Released: {release.date} • {release.size}
-                      </div>
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownloadApk(release.version, release.sizeInMB)}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium flex items-center gap-2">
-                  <Badge variant="outline" className="bg-blue-700/20 text-blue-700 h-6">
-                    iOS
-                  </Badge>
-                  <span>iOS App</span>
-                </h3>
-              </div>
-              
-              <div className="border rounded-md divide-y">
-                {iosReleases.map((release) => (
-                  <div key={release.version} className="p-4 flex items-center justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">Version {release.version}</h4>
-                        {release.isLatest && (
-                          <Badge variant="outline" className="bg-blue-500/20 text-blue-700">
-                            Latest
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        Released: {release.date} • {release.size}
-                      </div>
-                    </div>
-                    
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled
-                      title="iOS distribution requires App Store Connect"
-                    >
-                      <Shield className="h-4 w-4 mr-2" />
-                      App Store Only
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          
-          <Separator className="my-6" />
-          
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">App Store Deployment</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border rounded-md p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-green-600" />
-                    <h4 className="font-medium">Google Play Store</h4>
-                  </div>
-                  <Badge variant="outline" className="bg-green-500/20 text-green-700">
-                    Connected
-                  </Badge>
-                </div>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="text-lg font-medium">App Dashboard</h3>
                 <p className="text-sm text-muted-foreground">
-                  Last updated: 2025-04-06 • v1.2.5
+                  Track and manage your mobile applications
                 </p>
               </div>
-              
-              <div className="border rounded-md p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Tablet className="h-5 w-5 text-blue-600" />
-                    <h4 className="font-medium">Apple App Store</h4>
-                  </div>
-                  <Badge variant="outline" className="bg-green-500/20 text-green-700">
-                    Connected
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Last updated: 2025-04-06 • v1.2.5
-                </p>
-              </div>
-            </div>
-            
-            <div className="pt-2">
-              <Button 
-                className="w-full"
-                onClick={handleUpdateAPK}
-                disabled={isUpdating}
-              >
-                {isUpdating ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Deploying...
-                  </>
-                ) : (
-                  <>
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Deploy to App Stores
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          <Separator className="my-6" />
-          
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Additional Tools</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border rounded-md p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <HardDrive className="h-5 w-5 text-purple-600" />
-                    <h4 className="font-medium">Google Drive Backup</h4>
-                  </div>
-                  <Badge variant="outline" className="bg-yellow-500/20 text-yellow-700">
-                    Available
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Securely backup your recovery phrase to Google Drive
-                </p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full mt-2"
-                  onClick={handleBackupToGoogleDrive}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleDownloadAnalytics}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  Backup Recovery Phrase
+                  Analytics
                 </Button>
-              </div>
-              
-              <div className="border rounded-md p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Github className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                    <h4 className="font-medium">Source Code</h4>
-                  </div>
-                  <Badge variant="outline">
-                    Private
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Access the source code repository for developers
-                </p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="w-full mt-2"
-                  onClick={() => toast.info("Repository access requested. An admin will contact you.")}
+                <Button
+                  onClick={handleUploadNewVersion}
+                  disabled={isUploading}
                 >
-                  <Github className="h-4 w-4 mr-2" />
-                  Request Repository Access
+                  {isUploading ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowUpDown className="h-4 w-4 mr-2" />
+                      Upload New Version
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
             
-            <div className="pt-2">
-              <Button 
-                className="w-full"
-                variant="outline"
-                onClick={toggleLinuxGuide}
-              >
-                {showLinuxGuide ? "Hide Linux Setup Guide" : "Show Linux/Ubuntu Setup Guide"}
-              </Button>
+            <div className="rounded-md border">
+              <div className="grid grid-cols-9 gap-2 p-4 border-b font-medium">
+                <div className="col-span-2">App Name</div>
+                <div>Version</div>
+                <div>Platform</div>
+                <div>Status</div>
+                <div>Size</div>
+                <div>Downloads</div>
+                <div>Rating</div>
+                <div className="text-right">Actions</div>
+              </div>
+              
+              {apps.map(app => (
+                <div key={app.id} className="grid grid-cols-9 gap-2 p-4 border-b last:border-0">
+                  <div className="col-span-2 font-medium">{app.name}</div>
+                  <div>{app.version}</div>
+                  <div>
+                    <Badge variant="outline">
+                      {app.platform}
+                    </Badge>
+                  </div>
+                  <div>
+                    <Badge
+                      variant="outline"
+                      className={
+                        app.status === 'published'
+                          ? 'bg-green-500/20 text-green-700'
+                          : app.status === 'pending'
+                          ? 'bg-yellow-500/20 text-yellow-700'
+                          : app.status === 'testing'
+                          ? 'bg-blue-500/20 text-blue-700'
+                          : 'bg-red-500/20 text-red-700'
+                      }
+                    >
+                      {app.status}
+                    </Badge>
+                  </div>
+                  <div>{app.size}</div>
+                  <div>{app.downloads.toLocaleString()}</div>
+                  <div className="flex items-center">
+                    {app.rating > 0 ? (
+                      <>
+                        {app.rating}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          className="w-4 h-4 ml-1 text-yellow-500"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </>
+                    ) : (
+                      "N/A"
+                    )}
+                  </div>
+                  <div className="flex justify-end gap-1">
+                    {app.status === 'pending' && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleTestApp(app.id)}
+                          title="Test"
+                          className="text-blue-500 hover:text-blue-700"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handlePublishApp(app.id)}
+                          title="Publish"
+                          className="text-green-500 hover:text-green-700"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRejectApp(app.id)}
+                          title="Reject"
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {app.status === 'testing' && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleTestApp(app.id)}
+                          title="Test"
+                          className="text-blue-500 hover:text-blue-700"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {app.status === 'published' && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleGenerateQRCode(app.id)}
+                          title="Generate QR Code"
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toast.info(`Editing ${app.name}`)}
+                          title="Edit"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toast.info(`Options for ${app.name}`)}
+                      title="More Options"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Virtual Phone Testing</h3>
+              <p className="text-sm text-muted-foreground">
+                Test your applications on virtual devices before publishing to users
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                <Card className="border shadow-none">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg">Test Latest Apps</CardTitle>
+                      <Badge>New</Badge>
+                    </div>
+                    <CardDescription>
+                      Test pending applications before publishing
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="bg-muted p-4 rounded-md">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-semibold">Next App for Testing</div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              {apps.find(app => app.status === 'pending')?.name || 'No pending apps'}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-yellow-500" />
+                            <span className="text-sm">Pending Review</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        className="w-full" 
+                        disabled={!apps.some(app => app.status === 'pending')}
+                        onClick={() => {
+                          const pendingApp = apps.find(app => app.status === 'pending');
+                          if (pendingApp) {
+                            handleTestApp(pendingApp.id);
+                          }
+                        }}
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Start Virtual Testing
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="border shadow-none">
+                  <CardHeader className="pb-2">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-lg">APK Testing</CardTitle>
+                      <Badge variant="outline" className="bg-blue-500/20 text-blue-700">Advanced</Badge>
+                    </div>
+                    <CardDescription>
+                      Test direct APK installations without app stores
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between bg-muted p-4 rounded-md">
+                        <div>
+                          <div className="font-semibold">Mintopia Wallet APK</div>
+                          <div className="text-sm text-muted-foreground mt-1">Version {apkVersion}</div>
+                        </div>
+                        <Badge variant="outline" className="bg-orange-500/20 text-orange-700">APK</Badge>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          className="flex-1"
+                          onClick={() => toast.success('APK downloaded for testing')}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download APK
+                        </Button>
+                        <Button 
+                          className="flex-1"
+                          onClick={handleTestAPK}
+                        >
+                          <Smartphone className="h-4 w-4 mr-2" />
+                          Test on Virtual Phone
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Mobile App Distribution</h3>
+              
+              <Tabs defaultValue="android" onValueChange={(value) => setActiveTab(value as 'android' | 'ios')}>
+                <TabsList>
+                  <TabsTrigger value="android">Android</TabsTrigger>
+                  <TabsTrigger value="ios">iOS</TabsTrigger>
+                </TabsList>
+                <TabsContent value="android" className="pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="border">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between">
+                          <div className="font-semibold">Google Play</div>
+                          <Badge className="bg-green-500/20 text-green-700">Active</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Manage your Google Play store listing
+                        </div>
+                        <Button className="mt-4 w-full" onClick={() => toast.success('Opening Google Play Console')}>
+                          Open Console
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between">
+                          <div className="font-semibold">APK Direct</div>
+                          <Badge variant="outline">Manual</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Distribute APK files directly
+                        </div>
+                        <Button variant="outline" className="mt-4 w-full" onClick={() => handleTestAPK()}>
+                          Test APK Install
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between">
+                          <div className="font-semibold">3rd Party Stores</div>
+                          <Badge variant="outline">Optional</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Amazon, Samsung, Huawei stores
+                        </div>
+                        <Button variant="outline" className="mt-4 w-full" onClick={() => toast.info('Manage 3rd party store listings')}>
+                          Manage Listings
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+                <TabsContent value="ios" className="pt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card className="border">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between">
+                          <div className="font-semibold">App Store</div>
+                          <Badge className="bg-green-500/20 text-green-700">Active</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Manage your App Store listing
+                        </div>
+                        <Button className="mt-4 w-full" onClick={() => toast.success('Opening App Store Connect')}>
+                          Open App Store Connect
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between">
+                          <div className="font-semibold">TestFlight</div>
+                          <Badge variant="outline">Beta Testing</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Distribute beta versions to testers
+                        </div>
+                        <Button variant="outline" className="mt-4 w-full" onClick={() => toast.info('Manage TestFlight')}>
+                          Manage Testers
+                        </Button>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="border">
+                      <CardContent className="p-6">
+                        <div className="flex justify-between">
+                          <div className="font-semibold">Enterprise</div>
+                          <Badge variant="outline">In-House</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Distribute within organization
+                        </div>
+                        <Button variant="outline" className="mt-4 w-full" onClick={() => toast.info('Manage enterprise distribution')}>
+                          Manage Distribution
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
-          
-          {showLinuxGuide && (
-            <div className="mt-6">
-              <LinuxSetupGuide />
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

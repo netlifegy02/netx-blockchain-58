@@ -13,15 +13,23 @@ import AdminUsers from '@/components/blockchain/AdminUsers';
 import AdminMobileApp from '@/components/blockchain/AdminMobileApp';
 import Trading from '@/components/blockchain/Trading';
 import Cashout from '@/components/blockchain/Cashout';
+import GoogleDriveBackup from '@/components/blockchain/GoogleDriveBackup';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ShieldAlert, Database, Users, Lock, ArrowLeftRight, DollarSign, Smartphone } from 'lucide-react';
+import { ShieldAlert, Database, Users, Lock, ArrowLeftRight, DollarSign, Smartphone, Cloud } from 'lucide-react';
 import { isAccountFullySetup, markAccountAsSetup } from '@/utils/authUtils';
+import VirtualPhoneTester from '@/components/mobile/VirtualPhoneTester';
 
 const AdminPage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [settings, setSettings] = useState(ADMIN_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
+  const [showVirtualTester, setShowVirtualTester] = useState(false);
+  const [currentAppTesting, setCurrentAppTesting] = useState<{
+    appType: 'iOS' | 'Android' | 'APK';
+    appVersion: string;
+    appName: string;
+  } | null>(null);
   
   useEffect(() => {
     const loadData = async () => {
@@ -76,6 +84,22 @@ const AdminPage = () => {
       toast.success(`Mining ${token.miningEnabled ? 'disabled' : 'enabled'} for ${token.symbol}`);
     }
   };
+
+  const handleTestApp = (appType: 'iOS' | 'Android' | 'APK', appVersion: string, appName: string) => {
+    setCurrentAppTesting({
+      appType,
+      appVersion,
+      appName
+    });
+    setShowVirtualTester(true);
+  };
+
+  const handleAppApproved = () => {
+    if (currentAppTesting) {
+      toast.success(`${currentAppTesting.appName} v${currentAppTesting.appVersion} approved for ${currentAppTesting.appType} distribution`);
+      // In a real application, you would update the app status in the database
+    }
+  };
   
   return (
     <Layout>
@@ -120,6 +144,10 @@ const AdminPage = () => {
                   <Database className="h-4 w-4" />
                   System Backups
                 </TabsTrigger>
+                <TabsTrigger value="gdrive" className="flex items-center gap-1">
+                  <Cloud className="h-4 w-4" />
+                  Google Drive
+                </TabsTrigger>
                 <TabsTrigger value="security" className="flex items-center gap-1">
                   <Lock className="h-4 w-4" />
                   Security Config
@@ -157,6 +185,10 @@ const AdminPage = () => {
                 <AdminBackup />
               </TabsContent>
 
+              <TabsContent value="gdrive">
+                <GoogleDriveBackup />
+              </TabsContent>
+
               <TabsContent value="security">
                 <AdminSecurity />
               </TabsContent>
@@ -166,12 +198,23 @@ const AdminPage = () => {
               </TabsContent>
 
               <TabsContent value="mobileapp">
-                <AdminMobileApp />
+                <AdminMobileApp onTestApp={handleTestApp} />
               </TabsContent>
             </Tabs>
           </div>
         )}
       </div>
+
+      {showVirtualTester && currentAppTesting && (
+        <VirtualPhoneTester 
+          appType={currentAppTesting.appType}
+          appVersion={currentAppTesting.appVersion}
+          appName={currentAppTesting.appName}
+          open={showVirtualTester}
+          onOpenChange={setShowVirtualTester}
+          onApprove={handleAppApproved}
+        />
+      )}
     </Layout>
   );
 };
