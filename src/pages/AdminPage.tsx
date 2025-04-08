@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/layout/Layout';
 import { Token } from '@/lib/blockchain-types';
@@ -16,9 +15,25 @@ import Cashout from '@/components/blockchain/Cashout';
 import GoogleDriveBackup from '@/components/blockchain/GoogleDriveBackup';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ShieldAlert, Database, Users, Lock, ArrowLeftRight, DollarSign, Smartphone, Cloud } from 'lucide-react';
-import { isAccountFullySetup, markAccountAsSetup } from '@/utils/authUtils';
+import { 
+  ShieldAlert, 
+  Database, 
+  Users, 
+  Lock, 
+  ArrowLeftRight, 
+  DollarSign, 
+  Smartphone, 
+  Cloud, 
+  CheckCircle2, 
+  AlertCircle 
+} from 'lucide-react';
+import { 
+  isAccountFullySetup, 
+  markAccountAsSetup, 
+  getSetupCompletionStatus 
+} from '@/utils/authUtils';
 import VirtualPhoneTester from '@/components/mobile/VirtualPhoneTester';
+import { Progress } from '@/components/ui/progress';
 
 const AdminPage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -30,6 +45,8 @@ const AdminPage = () => {
     appVersion: string;
     appName: string;
   } | null>(null);
+  const [setupStatus, setSetupStatus] = useState<any>(null);
+  const [setupProgress, setSetupProgress] = useState(0);
   
   useEffect(() => {
     const loadData = async () => {
@@ -38,6 +55,18 @@ const AdminPage = () => {
         // Check if admin account is fully set up, if not, mark it as set up
         if (!isAccountFullySetup()) {
           markAccountAsSetup();
+        }
+        
+        // Get setup completion status
+        const status = getSetupCompletionStatus();
+        setSetupStatus(status);
+        
+        if (status) {
+          // Calculate setup progress percentage
+          const tasks = Object.values(status);
+          const completedTasks = tasks.filter(task => task === true).length;
+          const progress = Math.round((completedTasks / tasks.length) * 100);
+          setSetupProgress(progress);
         }
         
         // Simulate API call delay
@@ -53,6 +82,27 @@ const AdminPage = () => {
     };
     
     loadData();
+  }, []);
+  
+  // Check setup status periodically
+  useEffect(() => {
+    const checkSetupStatus = () => {
+      const status = getSetupCompletionStatus();
+      setSetupStatus(status);
+      
+      if (status) {
+        // Calculate setup progress percentage
+        const tasks = Object.values(status);
+        const completedTasks = tasks.filter(task => task === true).length;
+        const progress = Math.round((completedTasks / tasks.length) * 100);
+        setSetupProgress(progress);
+      }
+    };
+    
+    // Check every minute
+    const interval = setInterval(checkSetupStatus, 60000);
+    
+    return () => clearInterval(interval);
   }, []);
   
   const handleApproveToken = (tokenId: string) => {
@@ -125,6 +175,65 @@ const AdminPage = () => {
                 Manage tokens, blockchain settings, system backups and user accounts
               </p>
             </div>
+            
+            {setupStatus && setupProgress < 100 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 mb-6">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <h3 className="font-medium text-blue-700 dark:text-blue-300">Admin Setup Progress</h3>
+                    </div>
+                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+                      {setupProgress}% Complete
+                    </span>
+                  </div>
+                  <Progress value={setupProgress} className="h-2" />
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                    <div className="flex items-center gap-1.5 text-sm">
+                      {setupStatus.accountInfo ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                      )}
+                      <span className={setupStatus.accountInfo ? "text-green-700 dark:text-green-500" : "text-amber-700 dark:text-amber-500"}>
+                        Account Setup
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm">
+                      {setupStatus.googleDrive ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                      )}
+                      <span className={setupStatus.googleDrive ? "text-green-700 dark:text-green-500" : "text-amber-700 dark:text-amber-500"}>
+                        Google Drive
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm">
+                      {setupStatus.security ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                      )}
+                      <span className={setupStatus.security ? "text-green-700 dark:text-green-500" : "text-amber-700 dark:text-amber-500"}>
+                        Security
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-sm">
+                      {setupStatus.users ? (
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-amber-500" />
+                      )}
+                      <span className={setupStatus.users ? "text-green-700 dark:text-green-500" : "text-amber-700 dark:text-amber-500"}>
+                        User Management
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             
             <Tabs defaultValue="tokens" className="space-y-6">
               <TabsList className="flex flex-wrap">

@@ -1,3 +1,4 @@
+
 export const isAuthenticated = (): boolean => {
   try {
     const authData = localStorage.getItem('auth');
@@ -110,7 +111,7 @@ export const isUsernameAvailable = (username: string): boolean => {
   }
 };
 
-// New function to mark user account as fully set up
+// Updated function to mark user account as fully set up
 export const markAccountAsSetup = () => {
   try {
     const authData = localStorage.getItem('auth');
@@ -118,14 +119,34 @@ export const markAccountAsSetup = () => {
     
     const parsed = JSON.parse(authData);
     
-    localStorage.setItem('auth', JSON.stringify({
+    const updatedAuth = {
       ...parsed,
       user: {
         ...parsed.user,
         isFullySetup: true
       }
-    }));
+    };
     
+    localStorage.setItem('auth', JSON.stringify(updatedAuth));
+    
+    // Also update the user in the users array if it exists
+    const users = localStorage.getItem('users');
+    if (users) {
+      const parsedUsers = JSON.parse(users);
+      const updatedUsers = parsedUsers.map((user: any) => {
+        if (user.username === parsed.user.username) {
+          return {
+            ...user,
+            isFullySetup: true
+          };
+        }
+        return user;
+      });
+      
+      localStorage.setItem('users', JSON.stringify(updatedUsers));
+    }
+    
+    console.log('Account marked as fully set up');
     return true;
   } catch (error) {
     console.error('Error marking account as set up:', error);
@@ -150,9 +171,7 @@ export const isAccountFullySetup = (): boolean => {
       const parsedUsers = JSON.parse(users);
       const currentUser = parsedUsers.find((u: any) => u.username === parsed?.user?.username);
       
-      // Mark existing accounts as set up
-      if (currentUser) {
-        markAccountAsSetup();
+      if (currentUser?.isFullySetup === true) {
         return true;
       }
     }
@@ -172,4 +191,43 @@ export const fileToBase64 = (file: File): Promise<string> => {
     reader.onerror = error => reject(error);
     reader.readAsDataURL(file);
   });
+};
+
+// Get setup completion status for admin dashboard
+export const getSetupCompletionStatus = () => {
+  try {
+    if (!isAdmin()) return null;
+    
+    const setupTasks = {
+      accountInfo: isAccountFullySetup(),
+      googleDrive: false,
+      security: false,
+      users: false,
+    };
+    
+    // Check Google Drive setup
+    const driveConfig = localStorage.getItem('googleDriveConfig');
+    if (driveConfig) {
+      const parsedConfig = JSON.parse(driveConfig);
+      setupTasks.googleDrive = parsedConfig.isConnected === true;
+    }
+    
+    // Check security setup
+    const securityConfig = localStorage.getItem('securityConfig');
+    if (securityConfig) {
+      setupTasks.security = true;
+    }
+    
+    // Check if any users have been added by admin
+    const users = localStorage.getItem('users');
+    if (users) {
+      const parsedUsers = JSON.parse(users);
+      setupTasks.users = parsedUsers.length > 1; // More than just the admin
+    }
+    
+    return setupTasks;
+  } catch (error) {
+    console.error('Error getting setup completion status:', error);
+    return null;
+  }
 };
