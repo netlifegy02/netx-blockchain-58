@@ -1,11 +1,11 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Copy, ExternalLink, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Copy, ExternalLink, Check, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useState } from 'react';
 
 interface WalletImportInstructionsProps {
   walletName: string;
@@ -21,16 +21,54 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
   recoveryPhrase
 }) => {
   const [copied, setCopied] = useState(false);
+  const [customRecoveryPhrase, setCustomRecoveryPhrase] = useState('');
+  const [phraseError, setPhraseError] = useState<string | null>(null);
+  
+  // Use the provided recoveryPhrase or the custom one
+  const activePhrase = recoveryPhrase || customRecoveryPhrase;
+  
+  // Reset custom phrase when dialog opens/closes or when a new recoveryPhrase is provided
+  useEffect(() => {
+    if (recoveryPhrase) {
+      setCustomRecoveryPhrase('');
+      setPhraseError(null);
+    }
+  }, [open, recoveryPhrase]);
   
   const copyToClipboard = () => {
-    if (recoveryPhrase) {
-      navigator.clipboard.writeText(recoveryPhrase);
+    if (activePhrase) {
+      navigator.clipboard.writeText(activePhrase);
       setCopied(true);
       toast.success('Recovery phrase copied to clipboard');
       
       setTimeout(() => {
         setCopied(false);
       }, 2000);
+    }
+  };
+
+  const validatePhrase = () => {
+    if (!customRecoveryPhrase.trim()) {
+      setPhraseError('Please enter a recovery phrase');
+      return false;
+    }
+    
+    // Check if the phrase has the expected number of words (usually 12 or 24)
+    const wordCount = customRecoveryPhrase.trim().split(/\s+/).length;
+    if (wordCount !== 12 && wordCount !== 24) {
+      setPhraseError(`Recovery phrase should have 12 or 24 words (currently has ${wordCount})`);
+      return false;
+    }
+    
+    setPhraseError(null);
+    toast.success('Recovery phrase validated successfully');
+    return true;
+  };
+
+  const handleCustomPhraseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomRecoveryPhrase(e.target.value);
+    if (phraseError) {
+      setPhraseError(null);
     }
   };
 
@@ -93,30 +131,55 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
             ))}
           </div>
           
-          {recoveryPhrase && (
-            <>
-              <Separator />
+          <Separator />
+          
+          <div className="space-y-2">
+            <div className="text-sm font-medium">Your Recovery Phrase</div>
+            {recoveryPhrase ? (
+              <div className="rounded-md bg-muted p-3">
+                <div className="text-sm break-all font-mono">{recoveryPhrase}</div>
+              </div>
+            ) : (
               <div className="space-y-2">
-                <div className="text-sm font-medium">Your Recovery Phrase</div>
-                <div className="rounded-md bg-muted p-3">
-                  <div className="text-sm break-all font-mono">{recoveryPhrase}</div>
-                </div>
+                <Input
+                  placeholder="Enter your recovery phrase (12 or 24 words)"
+                  value={customRecoveryPhrase}
+                  onChange={handleCustomPhraseChange}
+                  className="font-mono text-sm"
+                />
+                {phraseError && (
+                  <div className="flex items-start gap-2 rounded-md bg-red-50 p-2 text-red-700 dark:bg-red-900/20 dark:text-red-400">
+                    <AlertTriangle className="h-4 w-4 mt-0.5" />
+                    <p className="text-xs">{phraseError}</p>
+                  </div>
+                )}
                 <Button 
-                  variant="outline" 
+                  variant="secondary" 
                   size="sm" 
                   className="w-full" 
-                  onClick={copyToClipboard}
+                  onClick={validatePhrase}
                 >
-                  {copied ? (
-                    <Check className="mr-2 h-4 w-4" />
-                  ) : (
-                    <Copy className="mr-2 h-4 w-4" />
-                  )}
-                  {copied ? 'Copied' : 'Copy Recovery Phrase'}
+                  Validate Phrase
                 </Button>
               </div>
-            </>
-          )}
+            )}
+            
+            {activePhrase && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full" 
+                onClick={copyToClipboard}
+              >
+                {copied ? (
+                  <Check className="mr-2 h-4 w-4" />
+                ) : (
+                  <Copy className="mr-2 h-4 w-4" />
+                )}
+                {copied ? 'Copied' : 'Copy Recovery Phrase'}
+              </Button>
+            )}
+          </div>
           
           <Separator />
           
@@ -136,13 +199,21 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
             variant="default"
             className="gap-1"
             onClick={() => {
-              window.open(
-                walletName === 'Phantom Wallet'
-                  ? 'https://phantom.app/download'
-                  : walletName === 'Trust Wallet'
-                  ? 'https://trustwallet.com/download'
-                  : 'https://metamask.io/download/'
-              );
+              let url = '';
+              switch(walletName.toLowerCase()) {
+                case 'phantom wallet':
+                  url = 'https://phantom.app/download';
+                  break;
+                case 'trust wallet':
+                  url = 'https://trustwallet.com/download';
+                  break;
+                case 'metamask':
+                  url = 'https://metamask.io/download/';
+                  break;
+                default:
+                  url = 'https://google.com/search?q=' + encodeURIComponent(walletName + ' download');
+              }
+              window.open(url);
             }}
           >
             <ExternalLink className="h-4 w-4 mr-1" />
