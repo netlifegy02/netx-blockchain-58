@@ -1,92 +1,115 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  Home, 
-  Coins, 
-  Gem, 
-  Settings, 
-  Users, 
-  Download, 
-  Shield,
-  Smartphone, 
-  Wallet,
-  AreaChart,
-  Clock,
-  DollarSign,
-  Lock,
-  Server
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { getUserInfo } from '@/utils/authUtils';
+import { Home, Users, Package, Settings, Activity, Power, Lock, Download } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
-interface SidebarItemProps {
-  to: string;
-  icon: React.ElementType;
-  label: string;
-  active?: boolean;
-  adminOnly?: boolean;
-}
-
-const SidebarItem: React.FC<SidebarItemProps> = ({ to, icon: Icon, label, active, adminOnly }) => {
-  const currentUser = getUserInfo();
-  const isAdmin = currentUser && (currentUser.isAdmin || currentUser.role === 'admin');
-  
-  // Don't render admin-only items for non-admin users
-  if (adminOnly && !isAdmin) return null;
-  
-  return (
-    <Link to={to}>
-      <Button
-        variant="ghost"
-        className={cn(
-          "w-full justify-start gap-2 mb-1",
-          active && "bg-accent text-accent-foreground"
-        )}
-      >
-        <Icon className="h-4 w-4" />
-        <span>{label}</span>
-      </Button>
-    </Link>
-  );
-};
-
-export const Sidebar: React.FC = () => {
+const Sidebar: React.FC = () => {
   const location = useLocation();
-  const path = location.pathname;
-  const currentUser = getUserInfo();
-  const isAdmin = currentUser && (currentUser.isAdmin || currentUser.role === 'admin');
-  
+  const { logout, isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const navigationItems = [
+    {
+      icon: <Home className="h-5 w-5" />,
+      name: 'Dashboard',
+      path: '/',
+    },
+    {
+      icon: <Users className="h-5 w-5" />,
+      name: 'Nodes',
+      path: '/nodes',
+    },
+    {
+      icon: <Package className="h-5 w-5" />,
+      name: 'Tokens',
+      path: '/tokens',
+    },
+    {
+      icon: <Activity className="h-5 w-5" />,
+      name: 'Mining',
+      path: '/mining',
+    },
+    {
+      icon: <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-smartphone h-5 w-5"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>,
+      name: 'Mobile App',
+      path: '/mobile',
+    },
+    {
+      icon: <Settings className="h-5 w-5" />,
+      name: 'Settings',
+      path: '/settings',
+    },
+    {
+      icon: <Download className="h-5 w-5" />,
+      name: 'Installation',
+      path: '/installation',
+    },
+  ];
+
+  if (isAuthenticated && user?.role === 'admin') {
+    navigationItems.push({
+      icon: <Lock className="h-5 w-5" />,
+      name: 'Admin',
+      path: '/admin',
+    });
+  }
+
   return (
-    <div className="h-screen w-64 border-r p-4 hidden md:block">
-      <div className="mb-8">
-        <h2 className="text-2xl font-bold text-primary mb-1">Mintopia</h2>
-        <p className="text-muted-foreground text-sm">Blockchain Platform</p>
-        
-        {isAdmin && (
-          <div className="mt-2 bg-primary/10 text-primary text-xs px-2 py-1 rounded-sm inline-flex items-center">
-            <Shield className="h-3 w-3 mr-1" />
-            Admin Account
-          </div>
-        )}
+    <div className="flex flex-col h-full bg-secondary/50 border-r border-r-border">
+      <div className="px-4 py-6">
+        <Link to="/" className="flex items-center space-x-2">
+          <img src="/logo.png" alt="Mintopia Logo" className="h-8 w-8" />
+          <span className="text-lg font-bold">Mintopia</span>
+        </Link>
       </div>
-      
-      <nav className="space-y-1">
-        <SidebarItem to="/" icon={Home} label="Dashboard" active={path === '/'} />
-        <SidebarItem to="/tokens" icon={Coins} label="Tokens" active={path.startsWith('/tokens')} />
-        <SidebarItem to="/mining" icon={Gem} label="Mining" active={path === '/mining'} />
-        <SidebarItem to="/wallet" icon={Wallet} label="My Wallet" active={path === '/wallet'} />
-        <SidebarItem to="/trading" icon={AreaChart} label="Trading" active={path === '/trading'} />
-        <SidebarItem to="/transactions" icon={Clock} label="Transactions" active={path === '/transactions'} />
-        <SidebarItem to="/cashout" icon={DollarSign} label="Cashout" active={path === '/cashout'} />
-        <SidebarItem to="/mobile-app" icon={Smartphone} label="Mobile App" active={path === '/mobile-app'} />
-        <SidebarItem to="/nodes" icon={Server} label="Nodes" active={path === '/nodes'} />
-        <SidebarItem to="/admin" icon={Shield} label="Admin" active={path === '/admin'} adminOnly={true} />
-        <SidebarItem to="/users" icon={Users} label="User Accounts" active={path === '/users'} adminOnly={true} />
-        <SidebarItem to="/security" icon={Lock} label="Security" active={path === '/security'} />
-        <SidebarItem to="/settings" icon={Settings} label="Settings" active={path === '/settings'} />
-      </nav>
+      <div className="flex-grow p-4">
+        <ul className="space-y-2">
+          {navigationItems.map((item) => (
+            <li key={item.name}>
+              <Link
+                to={item.path}
+                className={`flex items-center space-x-3 p-3 rounded-md hover:bg-secondary ${location.pathname === item.path ? 'bg-secondary text-primary' : ''
+                  }`}
+              >
+                {item.icon}
+                <span>{item.name}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {isAuthenticated && (
+        <div className="p-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center space-x-3 p-3 rounded-md hover:bg-secondary w-full"
+                >
+                  <Power className="h-5 w-5" />
+                  <span>Logout</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Logout from Mintopia
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
     </div>
   );
 };

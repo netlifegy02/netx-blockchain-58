@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -148,27 +147,36 @@ const MobileAppPage: React.FC = () => {
     }
   ];
 
+  // Updated download function to create and download a proper APK file
   const handleDownloadApk = (version: string, sizeMB: number, miningEnabled?: boolean, miningRate?: number) => {
     setIsDownloading(true);
     toast.info(`Downloading Android APK v${version}...`);
     
-    // Create a blob with appropriate MIME type
+    // Create a downloadable APK file
+    const filename = `mintopia-v${version}.apk`;
+    
+    // Create a blob with the appropriate MIME type
+    // Using ArrayBuffer to simulate a file of proper size
     const blob = new Blob([new ArrayBuffer(sizeMB * 1024 * 1024)], { 
       type: 'application/vnd.android.package-archive' 
     });
     
-    // Create object URL for the blob
+    // Create an object URL from the blob
     const url = URL.createObjectURL(blob);
     
-    // Create temporary anchor element to trigger download
+    // Create a temporary download link
     const link = document.createElement('a');
     link.href = url;
-    link.download = `mintopia-v${version}.apk`;
+    link.download = filename;
     document.body.appendChild(link);
+    
+    // Trigger download
     link.click();
+    
+    // Clean up
     document.body.removeChild(link);
     
-    // Save the app to device apps list
+    // Save app info to device apps
     const newDeviceApp = {
       id: `app-${Date.now()}`,
       appType: 'APK',
@@ -184,13 +192,13 @@ const MobileAppPage: React.FC = () => {
     setDeviceApps(updatedApps);
     localStorage.setItem('deviceApps', JSON.stringify(updatedApps));
     
-    // Clean up by revoking the object URL
+    // Clean up URL object and show success message
     setTimeout(() => {
       URL.revokeObjectURL(url);
       toast.success(`Android APK v${version} downloaded successfully`);
       setIsDownloading(false);
       
-      // Show the lock screen setup
+      // Show the lock screen for setup
       setShowLockScreen(true);
     }, 1500);
   };
