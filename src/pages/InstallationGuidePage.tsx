@@ -8,10 +8,11 @@ import { Separator } from '@/components/ui/separator';
 import { Steps, Step } from '@/components/ui/steps';
 import { CopyCommand } from '@/components/ui/copy-command';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, CheckCircle, Download, ServerIcon, Terminal } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle, Download, ServerIcon, Terminal } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { Link } from 'react-router-dom';
 
 const InstallationGuidePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("server");
@@ -219,11 +220,11 @@ echo "=========================================="`;
     },
     {
       title: "Create node directory",
-      command: "mkdir -p /opt/netx-node && cd /opt/netx-node"
+      command: "mkdir -p /opt/blockchain-node && cd /opt/blockchain-node"
     },
     {
       title: "Download configuration files",
-      command: "wget -O netx-node.tar.gz https://github.com/netx/blockchain-node/releases/latest/download/config.tar.gz && tar -xzf netx-node.tar.gz"
+      command: "wget -O blockchain-node.tar.gz https://github.com/netlifegy02/blockchain-node/releases/latest/download/config.tar.gz && tar -xzf blockchain-node.tar.gz"
     },
     {
       title: "Generate Node ID",
@@ -396,11 +397,19 @@ echo "=========================================================="`;
     <Layout>
       <div className="container px-4 py-8 mx-auto">
         <div className="flex flex-col gap-6">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">NETX Blockchain Installation Guide</h1>
-            <p className="text-muted-foreground">
-              Complete instructions for setting up NETX blockchain nodes and web application
-            </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">NETX Blockchain Installation Guide</h1>
+              <p className="text-muted-foreground">
+                Complete instructions for setting up NETX blockchain nodes and web application
+              </p>
+            </div>
+            <Link to="/">
+              <Button variant="outline" className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                Back to Dashboard
+              </Button>
+            </Link>
           </div>
           
           <Tabs defaultValue="server" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -535,27 +544,27 @@ echo "=========================================================="`;
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <h4 className="font-medium">Start Node</h4>
-                        <CopyCommand value="systemctl start netx-node" />
+                        <CopyCommand value="systemctl start blockchain-node" />
                       </div>
                       
                       <div className="space-y-2">
                         <h4 className="font-medium">Stop Node</h4>
-                        <CopyCommand value="systemctl stop netx-node" />
+                        <CopyCommand value="systemctl stop blockchain-node" />
                       </div>
                       
                       <div className="space-y-2">
                         <h4 className="font-medium">Check Node Status</h4>
-                        <CopyCommand value="cd /opt/netx-node && docker-compose ps" />
+                        <CopyCommand value="cd /opt/blockchain-node && docker-compose ps" />
                       </div>
                       
                       <div className="space-y-2">
                         <h4 className="font-medium">View Node Logs</h4>
-                        <CopyCommand value="cd /opt/netx-node && docker-compose logs -f" />
+                        <CopyCommand value="cd /opt/blockchain-node && docker-compose logs -f" />
                       </div>
                       
                       <div className="space-y-2">
                         <h4 className="font-medium">Update Node</h4>
-                        <CopyCommand value="cd /opt/netx-node && docker-compose pull && docker-compose up -d" />
+                        <CopyCommand value="cd /opt/blockchain-node && docker-compose pull && docker-compose up -d" />
                       </div>
                       
                       <div className="space-y-2">
@@ -594,7 +603,7 @@ echo "=========================================================="`;
                         <StepTitle>Clone the repository</StepTitle>
                         <StepDescription>
                           <div className="space-y-2">
-                            <CopyCommand value="git clone https://github.com/netx/blockchain-web.git" />
+                            <CopyCommand value="git clone https://github.com/netlifegy02/blockchain-web.git" />
                           </div>
                         </StepDescription>
                       </Step>
@@ -615,7 +624,7 @@ echo "=========================================================="`;
                             <p>Create a .env file with your configuration:</p>
                             <CopyCommand value="VITE_API_URL=https://api.yourserver.com
 VITE_NODE_RPC=https://rpc.yourserver.com
-VITE_BLOCKCHAIN_EXPLORER=https://explorer.netx.network" />
+VITE_BLOCKCHAIN_EXPLORER=https://explorer.netlifegy02.com" />
                           </div>
                         </StepDescription>
                       </Step>
@@ -699,7 +708,7 @@ VITE_BLOCKCHAIN_EXPLORER=https://explorer.netx.network" />
                       <Step>
                         <StepTitle>Clone the repository</StepTitle>
                         <StepDescription>
-                          <CopyCommand value="git clone https://github.com/netx/mobile-wallet.git" />
+                          <CopyCommand value="git clone https://github.com/netlifegy02/mobile-wallet.git" />
                         </StepDescription>
                       </Step>
                       
