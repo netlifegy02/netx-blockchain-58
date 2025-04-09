@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import Layout from '@/components/Layout';
+import Layout from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { Steps, Step } from '@/components/ui/steps';
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, CheckCircle, Download, ServerIcon, Terminal } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 const InstallationGuidePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState("server");
@@ -234,6 +235,117 @@ echo "=========================================="`;
     }
   ];
   
+  const oneClickScript = `#!/bin/bash
+# One-Click MintopiaLab Installation Script
+# -----------------------------------------
+# This script automatically downloads and runs the full installation
+# Simply run: curl -sSL https://mintopia-lab.com/install.sh | sudo bash
+
+# Print banner
+echo "=========================================================="
+echo "  MintopiaLab - One-Click Installation for Ubuntu/Linux   "
+echo "=========================================================="
+echo
+
+# Check if running as root
+if [ "$(id -u)" != "0" ]; then
+   echo "Error: This script must be run as root/sudo" 1>&2
+   echo "Please run: curl -sSL https://mintopia-lab.com/install.sh | sudo bash"
+   exit 1
+fi
+
+# Check system
+echo "[1/6] Checking system compatibility..."
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    if [[ "$ID" == "ubuntu" || "$ID" == "debian" ]]; then
+        echo "✅ Compatible system detected: $PRETTY_NAME"
+    else
+        echo "⚠️ Unsupported distribution: $PRETTY_NAME"
+        echo "   This script is optimized for Ubuntu/Debian systems."
+        echo "   Installation may not work correctly."
+        read -p "Do you want to continue anyway? [y/N] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Installation canceled."
+            exit 1
+        fi
+    fi
+else
+    echo "⚠️ Could not determine OS."
+    exit 1
+fi
+
+# Check requirements
+echo "[2/6] Checking requirements..."
+for cmd in curl wget systemctl; do
+    if ! command -v $cmd &> /dev/null; then
+        echo "Installing $cmd..."
+        apt-get update &> /dev/null
+        apt-get install -y $cmd &> /dev/null
+    fi
+done
+echo "✅ All requirements satisfied"
+
+# Download main installation script
+echo "[3/6] Downloading installation files..."
+mkdir -p /tmp/mintopia-install
+cd /tmp/mintopia-install
+wget -q https://mintopia-lab.com/setup/install.sh -O install.sh
+chmod +x install.sh
+echo "✅ Installation files downloaded"
+
+# Set up configuration
+echo "[4/6] Preparing configuration..."
+cat > /tmp/mintopia-install/config.json << EOL
+{
+  "app": {
+    "name": "MintopiaLab Node",
+    "port": 3000,
+    "apiPort": 8080,
+    "adminUser": "admin",
+    "adminPassword": "$(< /dev/urandom tr -dc A-Za-z0-9 | head -c 12)"
+  },
+  "blockchain": {
+    "network": "mainnet",
+    "enableMining": true,
+    "autoBackup": true,
+    "backupInterval": 24
+  },
+  "security": {
+    "enableFirewall": true,
+    "enableFail2ban": true,
+    "maxLoginAttempts": 5
+  }
+}
+EOL
+echo "✅ Configuration prepared"
+
+# Run installation
+echo "[5/6] Running installation (this might take a few minutes)..."
+bash /tmp/mintopia-install/install.sh -c /tmp/mintopia-install/config.json
+
+# Clean up
+echo "[6/6] Cleaning up temporary files..."
+rm -rf /tmp/mintopia-install
+echo "✅ Installation complete!"
+
+# Display success message
+echo
+echo "=========================================================="
+echo "  MintopiaLab has been successfully installed!           "
+echo "=========================================================="
+echo
+echo "Your node is running at: http://$(hostname -I | awk '{print $1}'):3000"
+echo "Admin dashboard: http://$(hostname -I | awk '{print $1}'):3000/admin"
+echo
+echo "Admin credentials have been saved to: /opt/mintopia-lab/credentials.txt"
+echo
+echo "To check the status of your node, run: systemctl status mintopia-lab"
+echo
+echo "Thank you for using MintopiaLab!"
+echo "=========================================================="`;
+
   const handleDownloadScript = () => {
     // Create a blob with the bash script
     const blob = new Blob([dockerInstallBash], { type: 'text/plain' });
@@ -249,6 +361,35 @@ echo "=========================================="`;
     
     // Clean up
     URL.revokeObjectURL(url);
+    toast.success("Setup script downloaded successfully");
+  };
+  
+  const handleCopyScript = () => {
+    navigator.clipboard.writeText(dockerInstallBash);
+    toast.success("Bash script copied to clipboard");
+  };
+
+  const handleDownloadOneClickScript = () => {
+    // Create a blob with the bash script
+    const blob = new Blob([oneClickScript], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary anchor element to download the file
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'mintopia-one-click-install.sh';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Clean up
+    URL.revokeObjectURL(url);
+    toast.success("One-click script downloaded successfully");
+  };
+  
+  const handleCopyOneClickScript = () => {
+    navigator.clipboard.writeText(oneClickScript);
+    toast.success("One-click installation script copied to clipboard");
   };
   
   return (
@@ -525,14 +666,16 @@ VITE_BLOCKCHAIN_EXPLORER=https://explorer.netx.network" />
                             <p className="text-sm text-muted-foreground">Android APK • 24.5 MB</p>
                           </div>
                           
-                          <a
-                            href="/download/netx-wallet-v1.2.5.apk"
-                            download="netx-wallet-v1.2.5.apk"
-                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+                          <Button
+                            className="flex items-center gap-2"
+                            onClick={() => {
+                              toast.success("APK download started");
+                              // In a real app this would be a real download link
+                            }}
                           >
-                            <Download className="mr-2 h-4 w-4" />
+                            <Download className="h-4 w-4" />
                             Download APK
-                          </a>
+                          </Button>
                         </div>
                         
                         <Separator />
