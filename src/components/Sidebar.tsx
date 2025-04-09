@@ -1,16 +1,17 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Users, Package, Settings, Activity, Power, Lock, Download } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
+} from "@/components/ui/tooltip";
 
-const Sidebar: React.FC = () => {
+export const Sidebar: React.FC = () => {
   const location = useLocation();
   const { logout, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -80,8 +81,9 @@ const Sidebar: React.FC = () => {
             <li key={item.name}>
               <Link
                 to={item.path}
-                className={`flex items-center space-x-3 p-3 rounded-md hover:bg-secondary ${location.pathname === item.path ? 'bg-secondary text-primary' : ''
-                  }`}
+                className={`flex items-center space-x-3 p-3 rounded-md hover:bg-secondary ${
+                  location.pathname === item.path ? 'bg-secondary text-primary' : ''
+                }`}
               >
                 {item.icon}
                 <span>{item.name}</span>
