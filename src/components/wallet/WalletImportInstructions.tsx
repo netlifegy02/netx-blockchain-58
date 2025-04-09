@@ -4,8 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Copy, ExternalLink, Check, AlertTriangle } from 'lucide-react';
+import { Copy, ExternalLink, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface WalletImportInstructionsProps {
   walletName: string;
@@ -23,6 +24,7 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
   const [copied, setCopied] = useState(false);
   const [customRecoveryPhrase, setCustomRecoveryPhrase] = useState('');
   const [phraseError, setPhraseError] = useState<string | null>(null);
+  const [phraseValid, setPhraseValid] = useState(false);
   
   // Use the provided recoveryPhrase or the custom one
   const activePhrase = recoveryPhrase || customRecoveryPhrase;
@@ -32,6 +34,10 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
     if (recoveryPhrase) {
       setCustomRecoveryPhrase('');
       setPhraseError(null);
+      // Auto-validate provided phrases
+      validatePhraseFormat(recoveryPhrase);
+    } else {
+      setPhraseValid(false);
     }
   }, [open, recoveryPhrase]);
   
@@ -47,28 +53,50 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
     }
   };
 
-  const validatePhrase = () => {
-    if (!customRecoveryPhrase.trim()) {
+  // Helper function to check if a phrase matches the expected format
+  const validatePhraseFormat = (phrase: string) => {
+    if (!phrase.trim()) {
       setPhraseError('Please enter a recovery phrase');
+      setPhraseValid(false);
       return false;
     }
     
     // Check if the phrase has the expected number of words (usually 12 or 24)
-    const wordCount = customRecoveryPhrase.trim().split(/\s+/).length;
+    const words = phrase.trim().split(/\s+/);
+    const wordCount = words.length;
+    
     if (wordCount !== 12 && wordCount !== 24) {
       setPhraseError(`Recovery phrase should have 12 or 24 words (currently has ${wordCount})`);
+      setPhraseValid(false);
+      return false;
+    }
+    
+    // Check if all words are valid (only letters, no numbers or special chars)
+    const invalidWords = words.filter(word => !/^[a-zA-Z]+$/.test(word));
+    if (invalidWords.length > 0) {
+      setPhraseError(`Recovery phrase contains invalid words (words should only contain letters)`);
+      setPhraseValid(false);
       return false;
     }
     
     setPhraseError(null);
-    toast.success('Recovery phrase validated successfully');
+    setPhraseValid(true);
     return true;
+  };
+
+  const validatePhrase = () => {
+    if (validatePhraseFormat(customRecoveryPhrase)) {
+      toast.success('Recovery phrase validated successfully');
+      return true;
+    }
+    return false;
   };
 
   const handleCustomPhraseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCustomRecoveryPhrase(e.target.value);
     if (phraseError) {
       setPhraseError(null);
+      setPhraseValid(false);
     }
   };
 
@@ -138,6 +166,12 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
             {recoveryPhrase ? (
               <div className="rounded-md bg-muted p-3">
                 <div className="text-sm break-all font-mono">{recoveryPhrase}</div>
+                {phraseValid && (
+                  <div className="flex items-center justify-center mt-2 text-green-600">
+                    <ShieldCheck className="h-4 w-4 mr-1" />
+                    <span className="text-xs">Valid recovery phrase</span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-2">
@@ -148,10 +182,16 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
                   className="font-mono text-sm"
                 />
                 {phraseError && (
-                  <div className="flex items-start gap-2 rounded-md bg-red-50 p-2 text-red-700 dark:bg-red-900/20 dark:text-red-400">
-                    <AlertTriangle className="h-4 w-4 mt-0.5" />
-                    <p className="text-xs">{phraseError}</p>
-                  </div>
+                  <Alert variant="destructive" className="py-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs ml-2">{phraseError}</AlertDescription>
+                  </Alert>
+                )}
+                {phraseValid && (
+                  <Alert variant="success" className="py-2 bg-green-50 border-green-200 text-green-800">
+                    <ShieldCheck className="h-4 w-4" />
+                    <AlertDescription className="text-xs ml-2">Recovery phrase is valid</AlertDescription>
+                  </Alert>
                 )}
                 <Button 
                   variant="secondary" 
@@ -170,6 +210,7 @@ const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
                 size="sm" 
                 className="w-full" 
                 onClick={copyToClipboard}
+                disabled={!phraseValid}
               >
                 {copied ? (
                   <Check className="mr-2 h-4 w-4" />

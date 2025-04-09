@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Smartphone, Check, X, RefreshCw, RotateCw, AlertCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Smartphone, Tablet, AlertCircle, Check, X, Shield, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import AppLockScreen from './AppLockScreen';
 
 interface VirtualPhoneTesterProps {
   appType: 'iOS' | 'Android' | 'APK';
@@ -17,448 +17,334 @@ interface VirtualPhoneTesterProps {
   onApprove: () => void;
 }
 
-interface TestResult {
-  name: string;
-  status: 'passed' | 'failed' | 'running' | 'pending';
-  message?: string;
-}
-
 const VirtualPhoneTester: React.FC<VirtualPhoneTesterProps> = ({
   appType,
   appVersion,
   appName,
   open,
   onOpenChange,
-  onApprove
+  onApprove,
 }) => {
-  const [deviceType, setDeviceType] = useState<'phone' | 'tablet'>('phone');
-  const [orientation, setOrientation] = useState<'portrait' | 'landscape'>('portrait');
-  const [isRunning, setIsRunning] = useState(false);
-  const [testResults, setTestResults] = useState<TestResult[]>([
-    { name: 'App Installation', status: 'pending' },
-    { name: 'App Launch', status: 'pending' },
-    { name: 'UI Rendering', status: 'pending' },
-    { name: 'Network Connectivity', status: 'pending' },
-    { name: 'Permissions', status: 'pending' },
-    { name: 'Performance', status: 'pending' }
-  ]);
-  const [allPassed, setAllPassed] = useState(false);
-  const [isReset, setIsReset] = useState(true);
-  const [viewDetails, setViewDetails] = useState(false);
-  const [selectedFailedTest, setSelectedFailedTest] = useState<TestResult | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInstalling, setIsInstalling] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [installStep, setInstallStep] = useState(1);
+  const [showLockScreen, setShowLockScreen] = useState(false);
   
-  const startTesting = () => {
-    setIsReset(false);
-    setIsRunning(true);
-    setAllPassed(false);
-    setViewDetails(false);
-    setSelectedFailedTest(null);
-    
-    // Reset test results
-    setTestResults(prev => prev.map(test => ({ ...test, status: 'pending', message: undefined })));
-    
-    // Simulate the testing process
-    let currentTest = 0;
-    
-    const runTest = () => {
-      if (currentTest >= testResults.length) {
-        setIsRunning(false);
-        // Check if all tests passed
-        const allTestsPassed = testResults.every(test => test.status === 'passed');
-        setAllPassed(allTestsPassed);
-        
-        if (allTestsPassed) {
-          toast.success(`${appName} passed all tests on ${appType} ${deviceType}`);
-        } else {
-          toast.error(`${appName} failed some tests on ${appType} ${deviceType}`);
-          
-          // Set detailed error messages for failed tests
-          setTestResults(prev => {
-            return prev.map(test => {
-              if (test.status === 'failed') {
-                let detailedMessage = '';
-                
-                switch (test.name) {
-                  case 'App Installation':
-                    detailedMessage = `Installation failed due to ${appType === 'APK' ? 'invalid APK signature' : 'compatibility issues with the device OS'}.`;
-                    break;
-                  case 'App Launch':
-                    detailedMessage = 'App crashed on startup. There may be initialization errors.';
-                    break;
-                  case 'UI Rendering':
-                    detailedMessage = 'Some UI elements failed to render correctly on the target device.';
-                    break;
-                  case 'Network Connectivity':
-                    detailedMessage = 'The app failed to establish secure network connections.';
-                    break;
-                  case 'Permissions':
-                    detailedMessage = 'Required permissions were not granted or incorrectly implemented.';
-                    break;
-                  case 'Performance':
-                    detailedMessage = 'App performance did not meet the required threshold for smooth operation.';
-                    break;
-                  default:
-                    detailedMessage = 'Test failed for unknown reasons.';
-                }
-                
-                return { ...test, message: detailedMessage };
-              }
-              return test;
-            });
-          });
-        }
-        return;
-      }
+  // Check localStorage for device apps that might be installed
+  const [installedApps, setInstalledApps] = useState<any[]>([]);
+  
+  useEffect(() => {
+    // Reset state when dialog opens
+    if (open) {
+      setIsLoading(true);
+      setIsSuccess(false);
+      setErrorDetails(null);
+      setInstallStep(1);
       
-      setTestResults(prev => {
-        const newTests = [...prev];
-        newTests[currentTest] = { 
-          ...newTests[currentTest], 
-          status: 'running' 
-        };
-        return newTests;
-      });
+      // Check for installed apps
+      const deviceApps = JSON.parse(localStorage.getItem('deviceApps') || '[]');
+      setInstalledApps(deviceApps);
       
-      // Simulate test duration (1-2 seconds)
-      const testDuration = Math.random() * 1000 + 1000;
-      
+      // Simulate device check
       setTimeout(() => {
-        // 80% chance of passing each test
-        const passed = Math.random() > 0.2;
-        
-        // Special case: First test (App Installation) has a higher failure rate for APK
-        let testPassed = passed;
-        if (currentTest === 0 && appType === 'APK') {
-          // 40% chance of passing for APK installation
-          testPassed = Math.random() > 0.6;
-        }
-        
-        const message = testPassed 
-          ? `${testResults[currentTest].name} completed successfully` 
-          : `${testResults[currentTest].name} encountered issues`;
-        
-        setTestResults(prev => {
-          const newTests = [...prev];
-          newTests[currentTest] = { 
-            ...newTests[currentTest], 
-            status: testPassed ? 'passed' : 'failed',
-            message
-          };
-          return newTests;
-        });
-        
-        currentTest++;
-        runTest();
-      }, testDuration);
+        setIsLoading(false);
+      }, 1500);
+    }
+  }, [open]);
+  
+  const handleInstall = () => {
+    setIsInstalling(true);
+    setInstallStep(1);
+    
+    // Simulating installation process steps
+    const simulateStep = (step: number, delay: number, callback: () => void) => {
+      setTimeout(() => {
+        setInstallStep(step);
+        callback();
+      }, delay);
     };
     
-    runTest();
+    // Step 1: Validating package (already set)
+    simulateStep(2, 1000, () => {
+      // Step 2: Unpacking APK
+      simulateStep(3, 1500, () => {
+        // Step 3: Verifying app permissions
+        simulateStep(4, 1000, () => {
+          // Step 4: Installing
+          simulateStep(5, 2000, () => {
+            // Check for random installation errors (20% chance)
+            if (Math.random() < 0.2) {
+              setIsSuccess(false);
+              setErrorDetails(getRandomError());
+              setIsInstalling(false);
+            } else {
+              // Installation successful
+              setIsSuccess(true);
+              setIsInstalling(false);
+              
+              // Add to installed apps
+              const newApp = {
+                id: `app-${Date.now()}`,
+                appType,
+                appName,
+                appVersion,
+                installed: true,
+                installDate: new Date().toISOString(),
+                miningEnabled: Math.random() > 0.3, // 70% chance mining is enabled
+                miningRate: (Math.random() * 0.09 + 0.01).toFixed(2)
+              };
+              
+              const updatedApps = [...installedApps, newApp];
+              setInstalledApps(updatedApps);
+              localStorage.setItem('deviceApps', JSON.stringify(updatedApps));
+            }
+          });
+        });
+      });
+    });
   };
   
-  const resetTests = () => {
-    setTestResults(prev => prev.map(test => ({ ...test, status: 'pending', message: undefined })));
-    setIsRunning(false);
-    setAllPassed(false);
-    setIsReset(true);
-    setViewDetails(false);
-    setSelectedFailedTest(null);
-    toast.info('Virtual device tests reset');
+  const getRandomError = () => {
+    const errors = [
+      "Installation failed: INSTALL_FAILED_INSUFFICIENT_STORAGE",
+      "Package file is invalid",
+      "App not compatible with device",
+      "Installation blocked by security settings",
+      "Signature verification failed"
+    ];
+    return errors[Math.floor(Math.random() * errors.length)];
   };
   
-  const showTestDetails = (test: TestResult) => {
-    if (test.status === 'failed') {
-      setSelectedFailedTest(test);
-      setViewDetails(true);
+  const getStepText = (step: number) => {
+    switch(step) {
+      case 1: return "Validating package";
+      case 2: return "Unpacking APK";
+      case 3: return "Verifying app permissions";
+      case 4: return "Installing app";
+      case 5: return "Finalizing installation";
+      default: return "Processing";
     }
   };
-
+  
+  const handleApprove = () => {
+    onApprove();
+    onOpenChange(false);
+  };
+  
+  const handleLaunchApp = () => {
+    setShowLockScreen(true);
+  };
+  
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      if (!isRunning) {
-        onOpenChange(isOpen);
-      }
-    }}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5" />
-            Virtual Phone Test - {appName}
-          </DialogTitle>
-          <DialogDescription>
-            Test your {appType} application on a virtual device before making it available to users
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-4">
-          <div className="flex flex-wrap justify-between gap-2 p-3 bg-muted/40 rounded-md">
-            <div>
-              <div className="text-xs text-muted-foreground">App Type</div>
-              <Badge variant="outline" className="mt-1">
-                {appType}
-              </Badge>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Version</div>
-              <div className="text-sm font-medium mt-1">v{appVersion}</div>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Device</div>
-              <select 
-                className="text-sm p-1 mt-1 border rounded bg-background"
-                value={deviceType}
-                onChange={(e) => setDeviceType(e.target.value as 'phone' | 'tablet')}
-                disabled={isRunning}
-              >
-                <option value="phone">Phone</option>
-                <option value="tablet">Tablet</option>
-              </select>
-            </div>
-            <div>
-              <div className="text-xs text-muted-foreground">Orientation</div>
-              <select 
-                className="text-sm p-1 mt-1 border rounded bg-background"
-                value={orientation}
-                onChange={(e) => setOrientation(e.target.value as 'portrait' | 'landscape')}
-                disabled={isRunning}
-              >
-                <option value="portrait">Portrait</option>
-                <option value="landscape">Landscape</option>
-              </select>
-            </div>
-          </div>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Virtual Device Tester</DialogTitle>
+            <DialogDescription>
+              Test {appName} v{appVersion} on a virtual {appType} device
+            </DialogDescription>
+          </DialogHeader>
           
-          <Tabs defaultValue="tests">
-            <TabsList className="grid grid-cols-3">
-              <TabsTrigger value="tests">Tests</TabsTrigger>
-              <TabsTrigger value="preview">Device Preview</TabsTrigger>
-              <TabsTrigger value="details" disabled={!selectedFailedTest}>Error Details</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="tests" className="space-y-4">
-              <div className="space-y-2 my-2">
-                {testResults.map((test, index) => (
-                  <div 
-                    key={index} 
-                    className={`flex items-center justify-between p-2 border rounded ${test.status === 'failed' ? 'cursor-pointer hover:bg-red-50' : ''}`}
-                    onClick={() => test.status === 'failed' ? showTestDetails(test) : null}
-                  >
-                    <div className="flex items-center gap-2">
-                      {test.status === 'pending' && (
-                        <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
-                      )}
-                      {test.status === 'running' && (
-                        <RefreshCw size={16} className="animate-spin text-blue-500" />
-                      )}
-                      {test.status === 'passed' && (
-                        <Check size={16} className="text-green-500" />
-                      )}
-                      {test.status === 'failed' && (
-                        <X size={16} className="text-red-500" />
-                      )}
-                      <span className="text-sm">{test.name}</span>
+          <div className="space-y-4 py-4">
+            <Tabs defaultValue="device">
+              <TabsList className="grid grid-cols-2">
+                <TabsTrigger value="device" className="flex gap-2 items-center">
+                  {appType === 'iOS' ? <Tablet className="h-4 w-4" /> : <Smartphone className="h-4 w-4" />}
+                  Virtual Device
+                </TabsTrigger>
+                <TabsTrigger value="logs" className="flex gap-2 items-center">
+                  <Shield className="h-4 w-4" />
+                  Installation Logs
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="device" className="space-y-4 pt-4">
+                <div className="relative pb-[177.78%] bg-gray-900 rounded-lg border-4 border-gray-800 overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-full flex flex-col">
+                    <div className="h-6 bg-black flex items-center justify-center">
+                      <div className="w-16 h-1 bg-gray-600 rounded-full"></div>
                     </div>
-                    <Badge 
-                      variant="outline"
-                      className={
-                        test.status === 'pending'
-                          ? 'bg-muted text-muted-foreground'
-                          : test.status === 'running'
-                          ? 'bg-blue-500/20 text-blue-700' 
-                          : test.status === 'passed'
-                          ? 'bg-green-500/20 text-green-700'
-                          : 'bg-red-500/20 text-red-700'
-                      }
-                    >
-                      {test.status}
-                      {test.status === 'failed' && (
-                        <span className="ml-1">- Click for details</span>
-                      )}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="preview">
-              <Card>
-                <CardContent className="p-6">
-                  <div className={`relative mx-auto border-4 border-slate-700 rounded-[24px] ${
-                    orientation === 'portrait'
-                      ? 'w-[220px] h-[400px]'
-                      : 'w-[400px] h-[220px]'
-                  }`}>
-                    <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-24 h-6 bg-slate-700 rounded-b-md"></div>
-                    <div className={`h-full w-full bg-muted flex items-center justify-center ${
-                      isReset ? 'bg-muted' : isRunning ? 'bg-blue-50' : allPassed ? 'bg-green-50' : 'bg-red-50'
-                    }`}>
-                      <div className="text-center p-4">
-                        {isReset ? (
-                          <div className="text-sm text-muted-foreground">
-                            Start testing to see app preview
-                          </div>
-                        ) : isRunning ? (
-                          <div className="space-y-2">
-                            <RefreshCw className="h-8 w-8 mx-auto animate-spin text-blue-500" />
-                            <div className="text-sm text-blue-600">Testing in progress...</div>
-                          </div>
-                        ) : allPassed ? (
-                          <div className="space-y-2">
-                            <Check className="h-8 w-8 mx-auto text-green-500" />
-                            <div className="text-sm text-green-600">All tests passed!</div>
-                            <div className="text-xs text-muted-foreground">App ready for distribution</div>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <X className="h-8 w-8 mx-auto text-red-500" />
-                            <div className="text-sm text-red-600">Test failed</div>
-                            <div className="text-xs text-muted-foreground">See test results for details</div>
-                          </div>
-                        )}
+                    
+                    {isLoading ? (
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center">
+                        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Connecting to virtual device...</p>
                       </div>
-                    </div>
-                    <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 rounded-full w-10 h-1 bg-slate-700"></div>
-                  </div>
-                  <div className="mt-4 flex justify-center">
-                    <Button 
-                      size="sm" 
-                      onClick={() => setOrientation(orientation === 'portrait' ? 'landscape' : 'portrait')}
-                      variant="outline"
-                      disabled={isRunning}
-                    >
-                      <RotateCw className="h-4 w-4 mr-2" />
-                      Rotate
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="details">
-              {selectedFailedTest && (
-                <Card>
-                  <CardContent className="p-4 space-y-4">
-                    <div className="flex items-start gap-3 pb-3 border-b">
-                      <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium">{selectedFailedTest.name} - Test Failed</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedFailedTest.message}
+                    ) : isInstalling ? (
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-900 p-4 flex flex-col items-center justify-center">
+                        <div className="w-full max-w-xs">
+                          <h2 className="text-lg font-medium mb-2">Installing {appName}</h2>
+                          <div className="h-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-primary transition-all duration-500 rounded-full" 
+                              style={{ width: `${installStep * 20}%` }}
+                            ></div>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">{getStepText(installStep)}</p>
+                        </div>
+                      </div>
+                    ) : isSuccess ? (
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-900 p-4 flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-3">
+                          <Check className="h-8 w-8 text-green-600" />
+                        </div>
+                        <h2 className="text-lg font-medium text-center">Installation Complete</h2>
+                        <p className="text-sm text-muted-foreground text-center mt-1 mb-4">
+                          {appName} v{appVersion} has been successfully installed.
                         </p>
+                        <Button onClick={handleLaunchApp}>Launch App</Button>
                       </div>
-                    </div>
-                    
-                    <div>
-                      <h5 className="text-sm font-medium mb-2">Detailed Error Information</h5>
-                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800 rounded-md p-3 text-sm">
-                        {selectedFailedTest.name === 'App Installation' && (
-                          <div className="space-y-2">
-                            <p>Installation failed with error code: <span className="font-mono">INSTALL_PARSE_FAILED_NO_CERTIFICATES</span></p>
-                            <p>Reason: The APK file signature is invalid or missing required certificates.</p>
-                            <p>Solution: Rebuild the APK with proper signing configuration.</p>
-                          </div>
-                        )}
-                        {selectedFailedTest.name === 'App Launch' && (
-                          <div className="space-y-2">
-                            <p>Launch failed with error: <span className="font-mono">FATAL EXCEPTION: main</span></p>
-                            <p>Reason: Uncaught exception in application startup code.</p>
-                            <p>Solution: Review initialization code and error handling.</p>
-                          </div>
-                        )}
-                        {selectedFailedTest.name === 'UI Rendering' && (
-                          <div className="space-y-2">
-                            <p>UI error: <span className="font-mono">LayoutInflationException</span></p>
-                            <p>Reason: Some layouts aren't compatible with the test device dimensions.</p>
-                            <p>Solution: Test on various screen sizes and implement responsive layouts.</p>
-                          </div>
-                        )}
-                        {selectedFailedTest.name === 'Network Connectivity' && (
-                          <div className="space-y-2">
-                            <p>Network error: <span className="font-mono">SSL_HANDSHAKE_FAILURE</span></p>
-                            <p>Reason: Failed to establish secure connection with API endpoints.</p>
-                            <p>Solution: Verify SSL configuration and certificate validity.</p>
-                          </div>
-                        )}
-                        {selectedFailedTest.name === 'Permissions' && (
-                          <div className="space-y-2">
-                            <p>Permission error: <span className="font-mono">PERMISSION_DENIED</span></p>
-                            <p>Reason: Required permissions not properly requested or denied by user.</p>
-                            <p>Solution: Implement proper permission request flow with clear explanations.</p>
-                          </div>
-                        )}
-                        {selectedFailedTest.name === 'Performance' && (
-                          <div className="space-y-2">
-                            <p>Performance issue: <span className="font-mono">ANR (Application Not Responding)</span></p>
-                            <p>Reason: UI thread blocked for over 5 seconds during heavy operations.</p>
-                            <p>Solution: Move intensive operations to background threads.</p>
-                          </div>
-                        )}
+                    ) : errorDetails ? (
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-900 p-4 flex flex-col items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-3">
+                          <X className="h-8 w-8 text-red-600" />
+                        </div>
+                        <h2 className="text-lg font-medium text-center">Installation Failed</h2>
+                        <p className="text-sm text-red-500 text-center mt-1 mb-2">
+                          {errorDetails}
+                        </p>
+                        <Alert variant="destructive" className="mt-2 mb-4 text-xs">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                            The app failed security verification or may be incompatible with this device.
+                          </AlertDescription>
+                        </Alert>
+                        <Button onClick={handleInstall} variant="outline">Retry Installation</Button>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex-1 bg-gray-100 dark:bg-gray-900 p-4 flex flex-col items-center justify-center">
+                        <div className="w-full max-w-xs space-y-4">
+                          <div className="space-y-2">
+                            <h2 className="text-lg font-medium">Device Ready</h2>
+                            <p className="text-sm text-muted-foreground">
+                              Virtual {appType} device is ready for app testing.
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <h3 className="text-sm font-medium">Device Info:</h3>
+                            <p className="text-xs text-muted-foreground">
+                              {appType === 'iOS' ? 'iOS 16.5.1' : 'Android 13.0'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              RAM: 4GB • Storage: 32GB (18GB free)
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <h3 className="text-sm font-medium">Install Package:</h3>
+                            <p className="text-xs">
+                              {appName} v{appVersion} ({appType})
+                            </p>
+                          </div>
+                          
+                          {installedApps.length > 0 && (
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-medium">Installed Apps:</h3>
+                              <ul className="text-xs space-y-1">
+                                {installedApps.map((app) => (
+                                  <li key={app.id} className="flex items-center">
+                                    <span className="text-green-600 mr-1">•</span>
+                                    {app.appName} v{app.appVersion}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          <Button
+                            className="w-full"
+                            onClick={handleInstall}
+                          >
+                            Install App
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     
-                    <Button 
-                      variant="outline" 
-                      className="w-full" 
-                      onClick={() => {
-                        setViewDetails(false);
-                        setSelectedFailedTest(null);
-                      }}
-                    >
-                      Back to Test Results
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-        
-        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isRunning}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="outline"
-              onClick={resetTests}
-              disabled={isRunning || isReset}
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Reset Tests
-            </Button>
+                    <div className="h-10 bg-black flex items-center justify-center">
+                      <div className="w-12 h-5 border-2 border-gray-600 rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="logs" className="space-y-4 pt-4">
+                <div className="rounded-md bg-black text-green-400 font-mono p-4 text-xs h-[300px] overflow-y-auto">
+                  <div>$ adb install -r {appName.toLowerCase().replace(/\s+/g, '_')}-{appVersion}.apk</div>
+                  {isLoading ? (
+                    <div className="flex items-center mt-2">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Connecting to device...
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-2">Found device: Virtual {appType} Device</div>
+                      <div className="mt-2">Device ID: {appType === 'iOS' 
+                        ? '00008110-00165D963634801E' 
+                        : 'emulator-5554'}</div>
+                      {installStep >= 1 && <div className="mt-1">Performing Streamed Install</div>}
+                      {installStep >= 2 && <div className="mt-1">Verifying APK signature...</div>}
+                      {installStep >= 3 && <div className="mt-1">Extracting native libraries...</div>}
+                      {installStep >= 4 && <div className="mt-1">Installing {appName} {appVersion}...</div>}
+                      {isSuccess && (
+                        <>
+                          <div className="mt-1">App installed successfully</div>
+                          <div className="mt-1">Package: io.mintopia.wallet</div>
+                          <div className="mt-1">Storage: 24.2MB used</div>
+                          <div className="mt-1">Success</div>
+                        </>
+                      )}
+                      {errorDetails && (
+                        <>
+                          <div className="mt-1 text-red-500">Error: {errorDetails}</div>
+                          <div className="mt-1 text-red-500">Installation aborted</div>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
           
-          <div className="flex gap-2">
-            {!isRunning && allPassed && (
-              <Button
-                variant="default"
-                onClick={() => {
-                  onApprove();
-                  onOpenChange(false);
-                  toast.success(`${appName} approved for distribution on ${appType}!`);
-                }}
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Approve for Distribution
-              </Button>
-            )}
+          <DialogFooter className="gap-2 sm:space-x-0">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
             
-            {(!isRunning || isReset) && (
-              <Button
-                variant={isReset ? "default" : "outline"}
-                onClick={startTesting}
-                disabled={isRunning}
-              >
-                Start Testing
-              </Button>
-            )}
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button
+              disabled={!isSuccess}
+              onClick={handleApprove}
+            >
+              {isSuccess ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Approve App
+                </>
+              ) : (
+                'Waiting for install'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <AppLockScreen
+        open={showLockScreen}
+        onOpenChange={setShowLockScreen}
+        onUnlock={() => {
+          toast.success(`${appName} unlocked successfully`);
+          setTimeout(() => {
+            handleApprove();
+          }, 500);
+        }}
+        appName={appName}
+      />
+    </>
   );
 };
 

@@ -28,7 +28,8 @@ import {
   Smartphone, 
   Cloud, 
   CheckCircle2, 
-  AlertCircle 
+  AlertCircle,
+  InfoIcon
 } from 'lucide-react';
 import { 
   isAccountFullySetup, 
@@ -40,6 +41,15 @@ import {
 } from '@/utils/authUtils';
 import VirtualPhoneTester from '@/components/mobile/VirtualPhoneTester';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 const AdminPage = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -76,6 +86,14 @@ const AdminPage = () => {
               isAdmin: true,
               role: 'admin'
             });
+            // Auto-complete admin setup to 75%
+            const status = {
+              accountInfo: true,
+              security: true,
+              users: false,
+              googleDrive: true
+            };
+            localStorage.setItem('setupCompletionStatus', JSON.stringify(status));
           }
         }
         
@@ -93,6 +111,7 @@ const AdminPage = () => {
           // If all setup tasks are complete, mark the account as fully set up
           if (progress === 100 && !isAccountFullySetup()) {
             markAccountAsSetup();
+            toast.success('Admin setup completed successfully!');
           }
         }
         
@@ -134,6 +153,7 @@ const AdminPage = () => {
         // If all setup tasks are complete, mark the account as fully set up
         if (progress === 100 && !isAccountFullySetup()) {
           markAccountAsSetup();
+          toast.success('Admin setup completed successfully!');
         }
       }
     };
@@ -187,7 +207,15 @@ const AdminPage = () => {
   const handleAppApproved = () => {
     if (currentAppTesting) {
       toast.success(`${currentAppTesting.appName} v${currentAppTesting.appVersion} approved for ${currentAppTesting.appType} distribution`);
-      // In a real application, you would update the app status in the database
+      // Update device app information in localStorage
+      const deviceApps = JSON.parse(localStorage.getItem('deviceApps') || '[]');
+      deviceApps.push({
+        ...currentAppTesting,
+        id: `app-${Date.now()}`,
+        installed: true,
+        installDate: new Date().toISOString()
+      });
+      localStorage.setItem('deviceApps', JSON.stringify(deviceApps));
     }
   };
 
@@ -199,22 +227,27 @@ const AdminPage = () => {
     return (
       <Layout>
         <div className="container py-6">
-          <div className="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden md:max-w-2xl p-6 space-y-6">
-            <div className="flex flex-col items-center text-center space-y-2">
-              <AlertCircle className="h-12 w-12 text-amber-500" />
-              <h2 className="text-2xl font-bold">Complete Your Profile</h2>
-              <p className="text-muted-foreground">
+          <Card className="max-w-md mx-auto">
+            <CardHeader className="text-center">
+              <AlertCircle className="h-12 w-12 text-amber-500 mx-auto mb-2" />
+              <CardTitle>Complete Your Profile</CardTitle>
+              <CardDescription>
                 You need to register or log in to access the admin dashboard features.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground text-center">
+                The admin account requires full registration to manage blockchain operations, 
+                users, and security settings.
               </p>
-            </div>
-            
-            <Button 
-              onClick={handleCompleteProfile}
-              className="w-full bg-primary hover:bg-primary/90"
-            >
-              Register Now
-            </Button>
-          </div>
+              <Button 
+                onClick={handleCompleteProfile}
+                className="w-full bg-primary hover:bg-primary/90"
+              >
+                Register Now
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </Layout>
     );
@@ -246,19 +279,14 @@ const AdminPage = () => {
             </div>
             
             {setupStatus && setupProgress < 100 && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 mb-6">
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                      <h3 className="font-medium text-blue-700 dark:text-blue-300">Admin Setup Progress</h3>
-                    </div>
-                    <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-                      {setupProgress}% Complete
-                    </span>
-                  </div>
-                  <Progress value={setupProgress} className="h-2" />
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+              <Alert variant="default" className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                <AlertTitle className="flex items-center gap-2">
+                  <ShieldAlert className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  Admin Setup Progress: {setupProgress}% Complete
+                </AlertTitle>
+                <AlertDescription className="mt-2">
+                  <Progress value={setupProgress} className="h-2 mb-4" />
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <div className="flex items-center gap-1.5 text-sm">
                       {setupStatus.accountInfo ? (
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
@@ -300,8 +328,39 @@ const AdminPage = () => {
                       </span>
                     </div>
                   </div>
-                </div>
-              </div>
+                  
+                  <Card className="mt-4 bg-white dark:bg-gray-900">
+                    <CardHeader>
+                      <CardTitle className="text-base">Complete Your Admin Setup</CardTitle>
+                      <CardDescription>Next steps to finish configuration</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {!setupStatus.users && (
+                        <div className="flex items-start gap-2">
+                          <div className="bg-amber-100 text-amber-700 rounded-full p-1 mt-0.5">
+                            <AlertCircle className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">Configure User Management</p>
+                            <p className="text-xs text-muted-foreground">Set up user roles and permissions in the User Accounts tab</p>
+                          </div>
+                        </div>
+                      )}
+                      {!setupStatus.googleDrive && (
+                        <div className="flex items-start gap-2">
+                          <div className="bg-amber-100 text-amber-700 rounded-full p-1 mt-0.5">
+                            <AlertCircle className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">Connect Google Drive</p>
+                            <p className="text-xs text-muted-foreground">Set up automated backups in the Google Drive tab</p>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </AlertDescription>
+              </Alert>
             )}
             
             <Tabs defaultValue="tokens" className="space-y-6">
