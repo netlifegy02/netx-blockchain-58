@@ -1,268 +1,176 @@
 
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import React, { useState } from 'react';
+import { Check, Clipboard, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
-import { Copy, ExternalLink, Check, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface WalletImportInstructionsProps {
-  walletName: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  recoveryPhrase?: string;
+  onImport?: (phrase: string) => void;
 }
 
-const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({
-  walletName,
-  open,
-  onOpenChange,
-  recoveryPhrase
-}) => {
+export const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({ onImport }) => {
+  const [recoveryPhrase, setRecoveryPhrase] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [customRecoveryPhrase, setCustomRecoveryPhrase] = useState('');
-  const [phraseError, setPhraseError] = useState<string | null>(null);
-  const [phraseValid, setPhraseValid] = useState(false);
   
-  // Use the provided recoveryPhrase or the custom one
-  const activePhrase = recoveryPhrase || customRecoveryPhrase;
+  // Sample recovery phrase for demonstration
+  const samplePhrase = "medal device machine glance memory detail flee forest sponsor license swamp review";
   
-  // Reset custom phrase when dialog opens/closes or when a new recoveryPhrase is provided
-  useEffect(() => {
-    if (recoveryPhrase) {
-      setCustomRecoveryPhrase('');
-      setPhraseError(null);
-      // Auto-validate provided phrases
-      validatePhraseFormat(recoveryPhrase);
-    } else {
-      setPhraseValid(false);
-    }
-  }, [open, recoveryPhrase]);
-  
-  const copyToClipboard = () => {
-    if (activePhrase) {
-      navigator.clipboard.writeText(activePhrase);
-      setCopied(true);
-      toast.success('Recovery phrase copied to clipboard');
-      
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    }
+  const handleCopy = () => {
+    navigator.clipboard.writeText(samplePhrase);
+    setCopied(true);
+    toast.success('Sample phrase copied to clipboard');
+    setTimeout(() => setCopied(false), 2000);
   };
-
-  // Helper function to check if a phrase matches the expected format
-  const validatePhraseFormat = (phrase: string) => {
+  
+  const validateRecoveryPhrase = (phrase: string): boolean => {
+    // Check if phrase is empty
     if (!phrase.trim()) {
-      setPhraseError('Please enter a recovery phrase');
-      setPhraseValid(false);
+      setValidationError('Recovery phrase cannot be empty');
       return false;
     }
     
-    // Check if the phrase has the expected number of words (usually 12 or 24)
+    // Basic validation: check for 12 words separated by spaces
     const words = phrase.trim().split(/\s+/);
-    const wordCount = words.length;
-    
-    if (wordCount !== 12 && wordCount !== 24) {
-      setPhraseError(`Recovery phrase should have 12 or 24 words (currently has ${wordCount})`);
-      setPhraseValid(false);
+    if (words.length !== 12) {
+      setValidationError('Recovery phrase must contain exactly 12 words');
       return false;
     }
     
-    // Check if all words are valid (only letters, no numbers or special chars)
-    const invalidWords = words.filter(word => !/^[a-zA-Z]+$/.test(word));
+    // Check if all words match the expected pattern (only letters)
+    const wordPattern = /^[a-zA-Z]+$/;
+    const invalidWords = words.filter(word => !wordPattern.test(word));
     if (invalidWords.length > 0) {
-      setPhraseError(`Recovery phrase contains invalid words (words should only contain letters)`);
-      setPhraseValid(false);
+      setValidationError('Recovery phrase contains invalid characters');
       return false;
     }
     
-    setPhraseError(null);
-    setPhraseValid(true);
+    // Passed validation
+    setValidationError('');
     return true;
   };
-
-  const validatePhrase = () => {
-    if (validatePhraseFormat(customRecoveryPhrase)) {
-      toast.success('Recovery phrase validated successfully');
-      return true;
-    }
-    return false;
-  };
-
-  const handleCustomPhraseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomRecoveryPhrase(e.target.value);
-    if (phraseError) {
-      setPhraseError(null);
-      setPhraseValid(false);
-    }
-  };
-
-  const getInstructions = () => {
-    switch (walletName.toLowerCase()) {
-      case 'phantom wallet':
-        return [
-          "Download Phantom Wallet from the App Store or Google Play.",
-          "Open the app and select 'Import an existing wallet'.",
-          "Enter your recovery phrase when prompted.",
-          "Create a strong password for your wallet.",
-          "Complete the setup and your wallet will be imported."
-        ];
-      case 'trust wallet':
-        return [
-          "Download Trust Wallet from the App Store or Google Play.",
-          "Open the app and tap 'I already have a wallet'.",
-          "Select 'Recovery phrase' and enter your phrase.",
-          "Set up a PIN or biometric authentication.",
-          "Your wallet will now be accessible in Trust Wallet."
-        ];
-      case 'metamask':
-        return [
-          "Download MetaMask from the App Store or Google Play.",
-          "Open the app and tap 'Import using Secret Recovery Phrase'.",
-          "Enter your 12-word recovery phrase.",
-          "Create a new password.",
-          "Review and accept the terms before completing setup."
-        ];
-      default:
-        return [
-          "Download the wallet app from the official source.",
-          "Open the app and look for an import or restore option.",
-          "Enter your recovery phrase when prompted.",
-          "Set up security features as recommended.",
-          "Your wallet should now be imported successfully."
-        ];
+  
+  const handleImport = () => {
+    if (validateRecoveryPhrase(recoveryPhrase)) {
+      toast.success('Wallet successfully imported');
+      if (onImport) {
+        onImport(recoveryPhrase);
+      }
+      
+      // Update localStorage to mark wallet as imported
+      localStorage.setItem('walletImported', 'true');
+      
+      // Record timestamp of import
+      localStorage.setItem('walletImportTimestamp', new Date().toISOString());
+      
+      // Store wallet address (in production this would be derived from the phrase)
+      localStorage.setItem('walletAddress', `0x${Math.random().toString(16).substr(2, 40)}`);
+    } else {
+      toast.error('Invalid recovery phrase');
     }
   };
   
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{walletName} Import Instructions</DialogTitle>
-          <DialogDescription>
-            Follow these steps to import your wallet to {walletName}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-4 py-4">
-          <div className="space-y-4">
-            {getInstructions().map((instruction, index) => (
-              <div key={index} className="flex items-start gap-2">
-                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border bg-primary text-xs text-primary-foreground">
-                  {index + 1}
-                </div>
-                <p className="text-sm text-muted-foreground">{instruction}</p>
-              </div>
-            ))}
-          </div>
-          
-          <Separator />
-          
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Your Recovery Phrase</div>
-            {recoveryPhrase ? (
-              <div className="rounded-md bg-muted p-3">
-                <div className="text-sm break-all font-mono">{recoveryPhrase}</div>
-                {phraseValid && (
-                  <div className="flex items-center justify-center mt-2 text-green-600">
-                    <ShieldCheck className="h-4 w-4 mr-1" />
-                    <span className="text-xs">Valid recovery phrase</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Input
-                  placeholder="Enter your recovery phrase (12 or 24 words)"
-                  value={customRecoveryPhrase}
-                  onChange={handleCustomPhraseChange}
-                  className="font-mono text-sm"
-                />
-                {phraseError && (
-                  <Alert variant="destructive" className="py-2">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="text-xs ml-2">{phraseError}</AlertDescription>
-                  </Alert>
-                )}
-                {phraseValid && (
-                  <Alert variant="success" className="py-2 bg-green-50 border-green-200 text-green-800">
-                    <ShieldCheck className="h-4 w-4" />
-                    <AlertDescription className="text-xs ml-2">Recovery phrase is valid</AlertDescription>
-                  </Alert>
-                )}
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  className="w-full" 
-                  onClick={validatePhrase}
-                >
-                  Validate Phrase
-                </Button>
-              </div>
+    <CardContent className="space-y-6">
+      <div className="space-y-2">
+        <h3 className="text-lg font-medium">Import Your Existing Wallet</h3>
+        <p className="text-sm text-muted-foreground">
+          Enter your 12-word recovery phrase to access your existing crypto wallet.
+        </p>
+      </div>
+      
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="recovery-phrase" className="text-sm font-medium">
+            Recovery Phrase
+          </label>
+          <Textarea
+            id="recovery-phrase"
+            placeholder="Enter your 12-word recovery phrase separated by spaces"
+            className="mt-1 resize-none font-mono"
+            rows={3}
+            type={passwordVisible ? "text" : "password"}
+            value={recoveryPhrase}
+            onChange={(e) => {
+              setRecoveryPhrase(e.target.value);
+              if (validationError) validateRecoveryPhrase(e.target.value);
+            }}
+          />
+          <div className="flex justify-between mt-1">
+            <label className="flex items-center text-xs text-muted-foreground">
+              <input 
+                type="checkbox" 
+                className="mr-2" 
+                checked={passwordVisible}
+                onChange={() => setPasswordVisible(!passwordVisible)}
+              />
+              Show recovery phrase
+            </label>
+            {validationError && (
+              <p className="text-xs text-destructive">{validationError}</p>
             )}
-            
-            {activePhrase && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full" 
-                onClick={copyToClipboard}
-                disabled={!phraseValid}
-              >
-                {copied ? (
-                  <Check className="mr-2 h-4 w-4" />
-                ) : (
-                  <Copy className="mr-2 h-4 w-4" />
-                )}
-                {copied ? 'Copied' : 'Copy Recovery Phrase'}
-              </Button>
-            )}
-          </div>
-          
-          <Separator />
-          
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Security Warning</div>
-            <p className="text-sm text-muted-foreground">
-              Never share your recovery phrase with anyone. Make sure you're on the official {walletName} website or app before entering your phrase.
-            </p>
           </div>
         </div>
         
-        <DialogFooter className="sm:justify-between">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          <Button
-            variant="default"
-            className="gap-1"
-            onClick={() => {
-              let url = '';
-              switch(walletName.toLowerCase()) {
-                case 'phantom wallet':
-                  url = 'https://phantom.app/download';
-                  break;
-                case 'trust wallet':
-                  url = 'https://trustwallet.com/download';
-                  break;
-                case 'metamask':
-                  url = 'https://metamask.io/download/';
-                  break;
-                default:
-                  url = 'https://google.com/search?q=' + encodeURIComponent(walletName + ' download');
-              }
-              window.open(url);
-            }}
+        {validationError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>
+              {validationError}
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        <div>
+          <Button 
+            onClick={handleImport} 
+            className="w-full"
+            disabled={!recoveryPhrase.trim()}
           >
-            <ExternalLink className="h-4 w-4 mr-1" />
-            Download {walletName}
+            Import Wallet
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </div>
+      
+      <div className="border-t pt-4 space-y-4">
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Don't have a recovery phrase?</h4>
+          <p className="text-sm text-muted-foreground">
+            If you're new to cryptocurrency or don't have an existing wallet, 
+            you can use our sample recovery phrase for testing purposes:
+          </p>
+        </div>
+        
+        <div className="bg-muted p-3 rounded-md relative">
+          <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+            {samplePhrase}
+          </pre>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="absolute right-2 top-2"
+            onClick={handleCopy}
+          >
+            {copied ? <Check size={16} /> : <Clipboard size={16} />}
+          </Button>
+        </div>
+        
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Important Security Notice</AlertTitle>
+          <AlertDescription>
+            Never share your real recovery phrase with anyone. The sample phrase provided here 
+            is for demonstration purposes only and should not be used for actual funds.
+          </AlertDescription>
+        </Alert>
+      </div>
+    </CardContent>
   );
 };
 

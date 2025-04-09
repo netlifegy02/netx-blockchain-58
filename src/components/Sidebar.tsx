@@ -14,7 +14,8 @@ import {
   AreaChart,
   Clock,
   DollarSign,
-  Lock 
+  Lock,
+  Server
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -80,6 +81,7 @@ export const Sidebar: React.FC = () => {
         <SidebarItem to="/transactions" icon={Clock} label="Transactions" active={path === '/transactions'} />
         <SidebarItem to="/cashout" icon={DollarSign} label="Cashout" active={path === '/cashout'} />
         <SidebarItem to="/mobile-app" icon={Smartphone} label="Mobile App" active={path === '/mobile-app'} />
+        <SidebarItem to="/nodes" icon={Server} label="Nodes" active={path === '/nodes'} />
         <SidebarItem to="/admin" icon={Shield} label="Admin" active={path === '/admin'} adminOnly={true} />
         <SidebarItem to="/users" icon={Users} label="User Accounts" active={path === '/users'} adminOnly={true} />
         <SidebarItem to="/security" icon={Lock} label="Security" active={path === '/security'} />
