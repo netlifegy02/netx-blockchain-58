@@ -54,8 +54,8 @@ fi
 
 # Install Docker Compose
 echo "[4/7] Installing Docker Compose..."
-COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
-curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\\" -f4)
+curl -L "https://github.com/docker/compose/releases/download/\${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 
 # Create directory for node
@@ -81,9 +81,9 @@ services:
       - ./data:/data
       - ./config:/config
     environment:
-      - NODE_ID=${NODE_ID:-node1}
-      - NODE_TYPE=${NODE_TYPE:-full}
-      - NETWORK=${NETWORK:-mainnet}
+      - NODE_ID=\${NODE_ID:-node1}
+      - NODE_TYPE=\${NODE_TYPE:-full}
+      - NETWORK=\${NETWORK:-mainnet}
     command: --config /config/node-config.json
 
   netx-monitor:
@@ -154,7 +154,7 @@ EOL
 
 # Generate random node ID
 NODE_ID=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
-sed -i "s/NODE_ID=node1/NODE_ID=${NODE_ID}/" /opt/netx-node/.env
+sed -i "s/NODE_ID=node1/NODE_ID=\${NODE_ID}/" /opt/netx-node/.env
 
 # Create service file for auto-start
 cat > /etc/systemd/system/netx-node.service << 'EOL'
@@ -181,7 +181,7 @@ systemctl enable netx-node.service
 
 echo "[7/7] Installation complete!"
 echo ""
-echo "Your NETX node has been installed with ID: ${NODE_ID}"
+echo "Your NETX node has been installed with ID: \${NODE_ID}"
 echo ""
 echo "To start your node:"
 echo "  systemctl start netx-node"
@@ -668,10 +668,7 @@ VITE_BLOCKCHAIN_EXPLORER=https://explorer.netx.network" />
                           
                           <Button
                             className="flex items-center gap-2"
-                            onClick={() => {
-                              toast.success("APK download started");
-                              // In a real app this would be a real download link
-                            }}
+                            onClick={handleDownloadOneClickScript}
                           >
                             <Download className="h-4 w-4" />
                             Download APK
