@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shell } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { CopyCommand } from '@/components/CopyCommand';
+import { CopyCommand } from '@/components/ui/copy-command';
 import { Button } from '@/components/ui/button';
 
 const NodeManagement = () => {
