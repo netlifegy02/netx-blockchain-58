@@ -43,9 +43,25 @@ const LoginPage: React.FC = () => {
             username: user.username, 
             role: user.role || 'user',
             email: user.email || '',
-            phone: user.phone || ''
+            phone: user.phone || '',
+            isFullySetup: user.isFullySetup || user.role === 'admin' || false
           }
         }));
+        
+        // For admin users, automatically set up their profile
+        if (user.role === 'admin') {
+          const adminProfile = {
+            fullName: user.username || 'Admin User',
+            phoneNumber: user.phone || '+1 (555) 123-4567',
+            birthDate: '1990-01-01',
+            location: 'New York, USA',
+            registeredAt: new Date().toISOString(),
+            isVerified: true,
+            role: 'admin'
+          };
+          
+          localStorage.setItem('userProfile', JSON.stringify(adminProfile));
+        }
         
         toast.success('Login successful');
         
@@ -64,9 +80,9 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-background bg-gradient-to-b from-background to-secondary/20 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Card className="shadow-lg">
+        <Card className="shadow-lg border border-border">
           <CardHeader className="space-y-1 text-center">
             <div className="w-16 h-16 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-4">
               <LogIn className="h-8 w-8 text-primary" />

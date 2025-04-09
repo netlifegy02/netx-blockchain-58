@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { Check, Clipboard, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,13 +7,24 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface WalletImportInstructionsProps {
   onImport?: (phrase: string) => void;
+  walletName?: string;
+  open?: boolean;
+  onOpenChange?: () => void;
+  recoveryPhrase?: string;
 }
 
-export const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({ onImport }) => {
-  const [recoveryPhrase, setRecoveryPhrase] = useState('');
+export const WalletImportInstructions: React.FC<WalletImportInstructionsProps> = ({ 
+  onImport, 
+  walletName, 
+  open,
+  onOpenChange,
+  recoveryPhrase: initialPhrase 
+}) => {
+  const [recoveryPhrase, setRecoveryPhrase] = useState(initialPhrase || '');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -21,6 +32,12 @@ export const WalletImportInstructions: React.FC<WalletImportInstructionsProps> =
   // Sample recovery phrase for demonstration
   const samplePhrase = "medal device machine glance memory detail flee forest sponsor license swamp review";
   
+  useEffect(() => {
+    if (initialPhrase) {
+      setRecoveryPhrase(initialPhrase);
+    }
+  }, [initialPhrase]);
+
   const handleCopy = () => {
     navigator.clipboard.writeText(samplePhrase);
     setCopied(true);
@@ -70,11 +87,91 @@ export const WalletImportInstructions: React.FC<WalletImportInstructionsProps> =
       
       // Store wallet address (in production this would be derived from the phrase)
       localStorage.setItem('walletAddress', `0x${Math.random().toString(16).substr(2, 40)}`);
+      
+      // Store the recovery phrase in localStorage
+      localStorage.setItem('walletRecoveryPhrase', recoveryPhrase);
+      
+      // Close sheet if open
+      if (onOpenChange) {
+        onOpenChange();
+      }
     } else {
       toast.error('Invalid recovery phrase');
     }
   };
   
+  // Render as Sheet if open prop is provided
+  if (typeof open !== 'undefined') {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Import to {walletName}</SheetTitle>
+            <SheetDescription>
+              Enter your 12-word recovery phrase to import your wallet
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 space-y-6">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <div className="font-medium text-sm">Recovery Phrase</div>
+                <label className="flex items-center text-xs text-muted-foreground">
+                  <input 
+                    type="checkbox" 
+                    className="mr-2" 
+                    checked={passwordVisible}
+                    onChange={() => setPasswordVisible(!passwordVisible)}
+                  />
+                  Show recovery phrase
+                </label>
+              </div>
+              <Textarea
+                id="recovery-phrase"
+                placeholder="Enter your 12-word recovery phrase separated by spaces"
+                className="mt-1 resize-none font-mono"
+                rows={3}
+                value={passwordVisible ? recoveryPhrase : '• • • • • • • • • • • •'}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) => {
+                  if (passwordVisible) {
+                    setRecoveryPhrase(e.target.value);
+                    if (validationError) validateRecoveryPhrase(e.target.value);
+                  }
+                }}
+              />
+            </div>
+            
+            {validationError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>
+                  {validationError}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <Button 
+              onClick={handleImport} 
+              className="w-full"
+              disabled={!passwordVisible || !recoveryPhrase.trim()}
+            >
+              Import to {walletName}
+            </Button>
+            
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Security Notice</AlertTitle>
+              <AlertDescription>
+                Never share your recovery phrase with anyone. It provides full access to your wallet.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+  
+  // Standard display for the wallet import page
   return (
     <CardContent className="space-y-6">
       <div className="space-y-2">
@@ -94,11 +191,12 @@ export const WalletImportInstructions: React.FC<WalletImportInstructionsProps> =
             placeholder="Enter your 12-word recovery phrase separated by spaces"
             className="mt-1 resize-none font-mono"
             rows={3}
-            type={passwordVisible ? "text" : "password"}
-            value={recoveryPhrase}
-            onChange={(e) => {
-              setRecoveryPhrase(e.target.value);
-              if (validationError) validateRecoveryPhrase(e.target.value);
+            value={passwordVisible ? recoveryPhrase : '• • • • • • • • • • • •'}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => {
+              if (passwordVisible) {
+                setRecoveryPhrase(e.target.value);
+                if (validationError) validateRecoveryPhrase(e.target.value);
+              }
             }}
           />
           <div className="flex justify-between mt-1">
@@ -131,7 +229,7 @@ export const WalletImportInstructions: React.FC<WalletImportInstructionsProps> =
           <Button 
             onClick={handleImport} 
             className="w-full"
-            disabled={!recoveryPhrase.trim()}
+            disabled={!passwordVisible || !recoveryPhrase.trim()}
           >
             Import Wallet
           </Button>

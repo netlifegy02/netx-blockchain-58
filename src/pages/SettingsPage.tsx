@@ -23,9 +23,14 @@ import {
   Download,
   RefreshCw,
   QrCode,
-  ArrowRight
+  ArrowRight,
+  Plus,
+  Trash2,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getUserInfo, markAccountAsSetup, updateUserInfo } from '@/utils/authUtils';
 
 interface WalletData {
   address: string;
@@ -47,6 +52,13 @@ interface NodeData {
   disk: number;
 }
 
+interface NotificationSetting {
+  id: string;
+  title: string;
+  description: string;
+  enabled: boolean;
+}
+
 const SettingsPage = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(true);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -58,30 +70,69 @@ const SettingsPage = () => {
   const [nodes, setNodes] = useState<NodeData[]>([]);
   const [verificationCode, setVerificationCode] = useState('');
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSetting[]>([
+    { id: 'mining', title: 'Mining Updates', description: 'Get notified about your mining rewards and status', enabled: true },
+    { id: 'security', title: 'Security Alerts', description: 'Important security notifications about your account', enabled: true },
+    { id: 'price', title: 'Price Alerts', description: 'Be notified when tokens reach your target price', enabled: false },
+    { id: 'news', title: 'Platform News', description: 'Updates about new features and platform changes', enabled: true },
+    { id: 'nodes', title: 'Node Status', description: 'Notifications about your node status changes', enabled: true },
+  ]);
   
   // For wallet import instructions
   const [currentWalletDialog, setCurrentWalletDialog] = useState<string | null>(null);
   
   useEffect(() => {
+    // Load user profile information
+    const userInfo = getUserInfo();
+    
+    if (userInfo) {
+      // Check for existing profile
+      const storedProfile = localStorage.getItem('userProfile');
+      
+      if (storedProfile) {
+        setUserProfile(JSON.parse(storedProfile));
+      } else if (userInfo.isAdmin || userInfo.role === 'admin') {
+        // Create default profile for admin
+        const adminProfile = {
+          fullName: userInfo.username || 'Admin User',
+          phoneNumber: '+1 (555) 123-4567',
+          birthDate: '1990-01-01',
+          location: 'New York, USA',
+          registeredAt: new Date().toISOString(),
+          isVerified: true,
+          role: 'admin'
+        };
+        
+        localStorage.setItem('userProfile', JSON.stringify(adminProfile));
+        setUserProfile(adminProfile);
+        
+        // Mark admin as fully set up
+        markAccountAsSetup();
+        
+        toast.success('Admin profile automatically configured');
+      }
+    }
+    
     // Simulate loading wallet data
     const storedWallet = localStorage.getItem('userWallet');
+    const storedPhrase = localStorage.getItem('walletRecoveryPhrase');
+    
     if (storedWallet) {
-      setWallet(JSON.parse(storedWallet));
+      const parsedWallet = JSON.parse(storedWallet);
+      // If we have a stored recovery phrase, use it
+      if (storedPhrase) {
+        parsedWallet.mnemonic = storedPhrase;
+      }
+      setWallet(parsedWallet);
     } else {
       // Create a mock wallet if none exists
       const mockWallet = {
         address: '0x' + Array(40).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
         privateKey: Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-        mnemonic: 'abandon ability able about above absent absorb abstract absurd abuse access accident'.split(' ').sort(() => 0.5 - Math.random()).join(' ')
+        mnemonic: storedPhrase || 'abandon ability able about above absent absorb abstract absurd abuse access accident'
       };
       setWallet(mockWallet);
       localStorage.setItem('userWallet', JSON.stringify(mockWallet));
-    }
-    
-    // Load user profile if exists
-    const storedProfile = localStorage.getItem('userProfile');
-    if (storedProfile) {
-      setUserProfile(JSON.parse(storedProfile));
     }
     
     // Generate mock nodes
@@ -145,6 +196,10 @@ const SettingsPage = () => {
     
     toast.success('Wallet information downloaded successfully');
   };
+
+  const handleChangeWallet = () => {
+    setCurrentWalletDialog('Change Wallet');
+  };
   
   const verifyPhoneNumber = () => {
     if (verificationCode.length !== 6) {
@@ -154,6 +209,13 @@ const SettingsPage = () => {
     
     toast.success('Phone number verified successfully');
     setVerificationCode('');
+    
+    // Update user profile with verified status
+    if (userProfile) {
+      const updatedProfile = { ...userProfile, isPhoneVerified: true };
+      localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
+      setUserProfile(updatedProfile);
+    }
   };
   
   const handleNodeAction = (nodeId: string, action: 'restart' | 'stop' | 'sync') => {
@@ -205,6 +267,30 @@ const SettingsPage = () => {
     setCurrentWalletDialog(walletName);
   };
   
+  const handleImportWallet = (phrase: string) => {
+    // This would normally connect to a blockchain API to import the wallet
+    const newWallet = {
+      address: `0x${Math.random().toString(16).substring(2, 42)}`,
+      privateKey: Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
+      mnemonic: phrase,
+    };
+    
+    setWallet(newWallet);
+    localStorage.setItem('userWallet', JSON.stringify(newWallet));
+    localStorage.setItem('walletRecoveryPhrase', phrase);
+    toast.success('Wallet successfully updated');
+  };
+
+  const handleToggleNotification = (id: string) => {
+    setNotificationSettings(
+      notificationSettings.map((setting) => 
+        setting.id === id ? { ...setting, enabled: !setting.enabled } : setting
+      )
+    );
+    
+    toast.success('Notification settings updated');
+  };
+  
   return (
     <Layout>
       <div className="container py-6">
@@ -250,6 +336,10 @@ const SettingsPage = () => {
               <TabsTrigger value="nodes" className="flex items-center gap-1">
                 <Server className="h-4 w-4" />
                 Nodes
+              </TabsTrigger>
+              <TabsTrigger value="notifications" className="flex items-center gap-1">
+                <Bell className="h-4 w-4" />
+                Notifications
               </TabsTrigger>
               <TabsTrigger value="mobile" className="flex items-center gap-1">
                 <Smartphone className="h-4 w-4" />
@@ -425,11 +515,17 @@ const SettingsPage = () => {
             <TabsContent value="wallet">
               <div className="grid gap-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Your Wallet</CardTitle>
-                    <CardDescription>
-                      View and manage your blockchain wallet
-                    </CardDescription>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Your Wallet</CardTitle>
+                      <CardDescription>
+                        View and manage your blockchain wallet
+                      </CardDescription>
+                    </div>
+                    <Button variant="outline" onClick={handleChangeWallet}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Change Wallet
+                    </Button>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-2">
@@ -612,12 +708,13 @@ const SettingsPage = () => {
               </div>
               
               {/* Wallet Import Instructions Dialog */}
-              {currentWalletDialog && wallet && (
+              {currentWalletDialog && (
                 <WalletImportInstructions
                   walletName={currentWalletDialog}
                   open={!!currentWalletDialog}
                   onOpenChange={() => setCurrentWalletDialog(null)}
-                  recoveryPhrase={wallet.mnemonic}
+                  recoveryPhrase={currentWalletDialog === 'Change Wallet' ? '' : wallet?.mnemonic}
+                  onImport={handleImportWallet}
                 />
               )}
             </TabsContent>
@@ -831,6 +928,80 @@ const SettingsPage = () => {
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            <TabsContent value="notifications">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notification Settings</CardTitle>
+                  <CardDescription>
+                    Configure which notifications you want to receive
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    {notificationSettings.map((setting) => (
+                      <div key={setting.id} className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <div className="font-medium">{setting.title}</div>
+                          <div className="text-sm text-muted-foreground">{setting.description}</div>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={setting.enabled ? "text-green-600" : "text-muted-foreground"}
+                          onClick={() => handleToggleNotification(setting.id)}
+                        >
+                          {setting.enabled ? (
+                            <><Bell className="h-4 w-4 mr-2" />Enabled</>
+                          ) : (
+                            <><BellOff className="h-4 w-4 mr-2" />Disabled</>
+                          )}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Notification Channels</h3>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch id="email-notifications" defaultChecked />
+                        <Label htmlFor="email-notifications">Email Notifications</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground pl-9">
+                        Receive notifications via email
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch id="push-notifications" defaultChecked />
+                        <Label htmlFor="push-notifications">Push Notifications</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground pl-9">
+                        Receive notifications on your devices
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch id="sms-notifications" />
+                        <Label htmlFor="sms-notifications">SMS Notifications</Label>
+                      </div>
+                      <p className="text-sm text-muted-foreground pl-9">
+                        Receive important alerts via SMS
+                      </p>
+                    </div>
+
+                    <Button onClick={() => toast.success('Notification preferences saved')}>
+                      Save Preferences
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
             
             <TabsContent value="mobile">
